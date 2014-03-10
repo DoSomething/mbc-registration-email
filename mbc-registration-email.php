@@ -38,7 +38,7 @@ class MBCRegistrationEmailController
    * @return string
    *   Details about the submitted email address
    */
-  public function subscribeToMailChimp($credentials, $config) {
+  public static function subscribeToMailChimp($credentials, $config) {
 
     // Setup RabbitMQ connection
     $MessageBroker = new MessageBroker($credentials, $config);
@@ -62,7 +62,7 @@ class MBCRegistrationEmailController
    * @return array
    *   An array of email addresses
    */
-  private function collectNewRegistrations($config = array()) {
+  private static function collectNewRegistrations($config = array()) {
 
     // Exchange
     $channel = setupExchange($config['exchange']['name'], $config['exchange']['type'], $this->channel);
@@ -85,7 +85,7 @@ class MBCRegistrationEmailController
    * @return array
    *   Array of email addresses formatted to meet MailChimp API requirements.
    */
-  private function composeSubscriberSubmission($newSubscribers = array()) {
+  private static function composeSubscriberSubmission($newSubscribers = array()) {
 
     return $composedSubscriberList;
   }
@@ -100,7 +100,7 @@ class MBCRegistrationEmailController
    *   A list of the RabbitMQ queue entry IDs that have been successfully
    *   submitted to MailChimp.
    */
-  private function submitToMailChimp($composedSubscriberList = array()) {
+  private static function submitToMailChimp($composedSubscriberList = array()) {
 
     return $processed;
   }
@@ -116,7 +116,7 @@ class MBCRegistrationEmailController
    *   A message reporting the results of the email addresses submitted to
    *   MailChimp for subscription.
    */
-  private function acknowledgeSubscriptions($processed = array()) {
+  private static function acknowledgeSubscriptions($processed = array()) {
 
     // Rabbit ack_backs
 
