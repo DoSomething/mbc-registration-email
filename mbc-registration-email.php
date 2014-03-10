@@ -13,22 +13,59 @@
 require('mb-secure-config.inc');
 require('mb-config.inc');
 
-// Controller
+/**
+  *
+  */
 class MBCRegistrationEmailController
 {
-  public function SubscribeToMailChimp($channel, $config) {
 
-    $newSubscribers = CollectNewRegistrations($channel, $config);
-    $composedSubscriberList = ComposeSubscriberSubmission($newSubscribers);
-    $processed = SubmitToMailChimp($composedSubscribers);
-    $results = AcknoledgeSubscriptions($processed);
+  /**
+   * AMQP channel, a connection thread within the port connection.
+   *
+   * @var object
+   */
+  private $channel = NULL;
+
+  /**
+   * Controller method for adding subscriptions to MailChimp by email address
+   *
+   * @param array $credentials
+   *   RabbitMQ connection details
+   *
+   * @param array $config
+   *   Configuration settings for exchange and queue
+   *
+   * @return string
+   *   Details about the submitted email address
+   */
+  public function subscribeToMailChimp($credentials, $config) {
+
+    // Setup RabbitMQ connection
+    $MessageBroker = new MessageBroker($credentials, $config);
+    $connection = $MessageBroker->connection;
+    $this->channel = $connection->channel();
+
+    $newSubscribers = self::collectNewRegistrations($config);
+    $composedSubscriberList = self::composeSubscriberSubmission($newSubscribers);
+    $processed = self::submitToMailChimp($composedSubscribers);
+    $results = self::acknowledgeSubscriptions($processed);
 
   }
 
-  private function CollectNewRegistrations($channel = array(), $config = array()) {
+  /**
+   * Collect a batch of email address for submission to MailChimp from the
+   * related RabbitMQ queue.
+   *
+   * @param array $config
+   *   Configuration settings for exchange and queue
+   *
+   * @return array
+   *   An array of email addresses
+   */
+  private function collectNewRegistrations($config = array()) {
 
     // Exchange
-    $channel = setupExchange($config['exchange']['name'], $config['exchange']['type'], $channel);
+    $channel = setupExchange($config['exchange']['name'], $config['exchange']['type'], $this->channel);
 
     // Queue
     $channel = setupQueue($config['queue']['name'], $channel, $config['queue']);
@@ -39,28 +76,58 @@ class MBCRegistrationEmailController
     return $newSubscribers;
   }
 
-  private function ComposeSubscriberSubmission($newSubscribers = array()) {
+  /**
+   * Format email list to meet MailChimp API requirements
+   *
+   * @param array $newSubscribers
+   *   The list of email address to be formatted
+   *
+   * @return array
+   *   Array of email addresses formatted to meet MailChimp API requirements.
+   */
+  private function composeSubscriberSubmission($newSubscribers = array()) {
 
     return $composedSubscriberList;
   }
 
-  private function SubmitToMailChimp($composedSubscriberList = array()) {
+  /**
+   * Make signup submission to MailChimp
+   *
+   * @param array $composedSubscriberList
+   *   The list of email address to be submitted to MailChimp
+   *
+   * @return array
+   *   A list of the RabbitMQ queue entry IDs that have been successfully
+   *   submitted to MailChimp.
+   */
+  private function submitToMailChimp($composedSubscriberList = array()) {
 
     return $processed;
   }
 
-  private function AcknoledgeSubscriptions($processed = array()) {
+  /**
+   * Send acknowledge to Rabbit queue that each entry was processed and can be
+   * removed from the queue.
+   *
+   * @param array $processed
+   *   An array of the message keys that can be acknowledged (ack_back)
+   *
+   * @return string
+   *   A message reporting the results of the email addresses submitted to
+   *   MailChimp for subscription.
+   */
+  private function acknowledgeSubscriptions($processed = array()) {
 
     // Rabbit ack_backs
 
-    $results = 'x number of subsciptions added to MailChimp.';
+    $results = 'x number of subscriptions added to MailChimp.';
 
     return $results;
   }
 
 }
 
-// Load credentails from enviroment variables set in mb-secure-config.inc
+// Load credentials from environment variables set in mb-secure-config.inc
 $credentials = array(
   'host' =>  getenv("RABBITMQ_HOST"),
   'port' => getenv("RABBITMQ_PORT"),
@@ -105,13 +172,5 @@ $config = array(
 
 );
 
-// Setup RabbitMQ connection
-$MessageBroker = new MessageBroker($credentials, $config);
-$connection = $MessageBroker->connection;
-$channel = $connection->channel();
-
 // Kick off - Controller call
-print MBCRegistrationEmailController::SubscribeToMailChimp($channel, $config);
-
-$channel->close();
-$connection->close();
+print MBCRegistrationEmailController::subscribeToMailChimp($channel, $config);
