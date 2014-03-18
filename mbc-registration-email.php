@@ -96,7 +96,7 @@ class MBC_UserRegistration
       $this->config['queue']['registrations']['auto_delete']);
 
     $messageCount = $status[1];
-    // @todo: Respond to unacknoledge messages
+    // @todo: Respond to unacknoledged messages
     $unackedCount = $status[2];
 
     $messageDetails = '';
@@ -174,7 +174,8 @@ class MBC_UserRegistration
     foreach ($newSubscribers as $newSubscriber) {
       $composedSubscriberList[] = array(
         'email' => array(
-          'email' => $newSubscriber['email']),
+          'email' => $newSubscriber['email']
+        ),
         'merge_vars' => array(
             'UID' => $newSubscriber['uid'],
             'MMERGE3' => $newSubscriber['fname'],
@@ -234,7 +235,7 @@ class MBC_UserRegistration
     // interest groups with the updated groups provided, or we add the provided
     // groups to the member's interest groups (optional, defaults to true)
 
-    // Lookup list details includeing "mailchimp_list_id"
+    // Lookup list details including "mailchimp_list_id"
     // -> 71893 "Do Something Members" is f2fab1dfd4 (who knows why?!?)
     //  $results = $MailChimp->call("lists/list", array());
 
