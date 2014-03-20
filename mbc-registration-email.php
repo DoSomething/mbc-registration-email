@@ -286,8 +286,10 @@ class MBC_UserRegistration
       'replace_interests' => FALSE
     ));
 
+    echo '------- ' . date('D M j G:i:s:u T Y') . ' -------', "\n";
     if ($results['error_count'] > 0) {
-      echo 'mbc-registration-email - submitToMailChimp(): ' . $results['error_count'] . ' errors reported, batch failed!', "\n";
+      echo ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.', "\n";
+      echo $results['error_count'] . ' errors reported, batch failed!', "\n";
 	    echo 'errors: '. print_r($results['errors'], TRUE) . "\n";
     }
     else {
