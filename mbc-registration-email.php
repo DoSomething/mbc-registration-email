@@ -96,28 +96,34 @@ class MBC_UserRegistration
       $this->config['queue']['registrations']['auto_delete']);
 
     $messageCount = $status[1];
-    // @todo: Respond to unacknoledged messages
+    // @todo: Respond to unacknowledged messages
     $unackedCount = $status[2];
 
     $messageDetails = '';
     $newSubscribers = array();
+    $processedCount = 0;
 
-    while ($messageCount > 0) {
+    while ($messageCount > 0 && $processedCount < 5) {
       $messageDetails = $this->channel->basic_get($this->config['queue']['registrations']['name']);
       $messagePayload = json_decode($messageDetails->body);
       $newSubscribers[] = array(
         'email' => $messagePayload->email,
- //       'campaign_id' => $messagePayload['campaign_id'],
         'fname' => $messagePayload->merge_vars->FNAME,
-        'uid' => $messagePayload->merge_vars->UID,
- //       'birthday' => $messagePayload['birthday'],
+        'uid' => $messagePayload->uid,
+        'birthdate' => $messagePayload->birthdate,
       );
       $this->channel->basic_ack($messageDetails->delivery_info['delivery_tag']);
       $messageCount--;
+      $processedCount++;
     }
 
     $composedSubscriberList = $this->composeSubscriberSubmission($newSubscribers);
-    $results = $this->submitToMailChimp($composedSubscriberList);
+    if (count($composedSubscriberList) > 0) {
+      $results = $this->submitToMailChimp($composedSubscriberList);
+    }
+    else {
+      $results = 'Now new accounts to submit to MailChimp.';
+    }
 
   }
 
@@ -138,25 +144,50 @@ class MBC_UserRegistration
       $this->config['queue']['campaign_signups']['auto_delete']);
 
     $messageCount = $status[1];
-    // @todo: Respond to unacknoledge messages
+    // @todo: Respond to unacknowledged messages
     $unackedCount = $status[2];
 
     $messageDetails = '';
     $campaignSignups = array();
+    $messagesProcessed = 0;
 
-    while ($messageCount > 0) {
+    while ($messageCount > 0 && $messagesProcessed < 300) {
       $messageDetails = $this->channel->basic_get($this->config['queue']['campaign_signups']['name']);
       $messagePayload = json_decode($messageDetails->body);
-      $campaignSignups[] = array(
-        'email' => $messagePayload->email,
-        'mailchimp_group_id' => $messagePayload['mailchimp_group_id'],
-      );
+
+      // HACK: Need "grouping" ID to assign interest groups
+      // Assume "Campaigns2014" grouping (10637) if $campaignSignup['mailchimp_grouping_id']
+      // not found in payload
+      if (!isset($messagePayload->merge_vars->mailchimp_grouping_id)) {
+        $messagePayload->merge_vars->mailchimp_grouping_id = 10637;
+      }
+      if (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_ID) && $messagePayload->merge_vars->MAILCHIMP_GROUP_ID == 393) {
+        $messagePayload->merge_vars->MAILCHIMP_GROUP_ID = 'PBJamSlam2014';
+      }
+      elseif (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_ID) && $messagePayload->merge_vars->MAILCHIMP_GROUP_ID == 401) {
+        $messagePayload->merge_vars->MAILCHIMP_GROUP_ID = 'ComebackClothes2014';
+      }
+      elseif (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_ID) && $messagePayload->merge_vars->MAILCHIMP_GROUP_ID == 237) {
+        $messagePayload->merge_vars->MAILCHIMP_GROUP_ID = 'MindOnMyMoney2013';
+        $messagePayload->merge_vars->mailchimp_grouping_id = 10621;
+      }
+
+      if (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_ID)) {
+        $campaignSignups[] = array(
+          'email' => $messagePayload->email,
+          'mailchimp_group_id' => $messagePayload->merge_vars->MAILCHIMP_GROUP_ID,
+          'mailchimp_grouping_id' => $messagePayload->merge_vars->mailchimp_grouping_id,
+        );
+      }
       $this->channel->basic_ack($messageDetails->delivery_info['delivery_tag']);
       $messageCount--;
+      $messagesProcessed++;
     }
 
     $composedSignupList = $this->composeSignupSubmission($campaignSignups);
-    $results = $this->submitToMailChimp($composedSignupList);
+    if (count($composedSignupList)) {
+      $results = $this->submitToMailChimp($composedSignupList);
+    }
   }
 
   /**
@@ -172,16 +203,20 @@ class MBC_UserRegistration
 
     $composedSubscriberList = array();
     foreach ($newSubscribers as $newSubscriber) {
-      $composedSubscriberList[] = array(
-        'email' => array(
-          'email' => $newSubscriber['email']
-        ),
-        'merge_vars' => array(
-            'UID' => $newSubscriber['uid'],
-            'MMERGE3' => $newSubscriber['fname'],
- //         'BDAY' => $newSubscriber['birthday'],
-        ),
-      );
+      // Dont add address of users under 13
+      if ($newSubscriber['birthdate'] < time() - (60 * 60 * 24 * 365 * 13)) {
+        $composedSubscriberList[] = array(
+          'email' => array(
+            'email' => $newSubscriber['email']
+          ),
+          'merge_vars' => array(
+              'UID' => $newSubscriber['uid'],
+              'MMERGE3' => $newSubscriber['fname'],
+              'BDAY' => date('m/d', $newSubscriber['birthdate']),
+              'BDAYFULL' => date('m/d/Y', $newSubscriber['birthdate']),
+          ),
+        );
+      }
     }
 
     return $composedSubscriberList;
@@ -198,15 +233,18 @@ class MBC_UserRegistration
    */
   private function composeSignupSubmission($campaignSignups = array()) {
 
+    // @todo: Rename mailchimp_group_id to mailchimp_interestgroup_name
+
     foreach ($campaignSignups as $campaignSignup) {
-      $groups = $campaignSignup['group'];
       $composedSubscriberList[] = array(
-        'email' => $newSubscriber['email'],
+        'email' => array(
+          'email' => $campaignSignup['email']
+        ),
         'merge_vars' => array(
-          'GROUPINGS' => array(
+          'groupings' => array(
             0 => array(
-              'id' => $this->config['mailchimp_list_id'],
-              'groups' => $groups,
+              'id' => $campaignSignup['mailchimp_grouping_id'],
+              'groups' => array($campaignSignup['mailchimp_group_id']),
             )
           ),
         ),
@@ -237,7 +275,8 @@ class MBC_UserRegistration
 
     // Lookup list details including "mailchimp_list_id"
     // -> 71893 "Do Something Members" is f2fab1dfd4 (who knows why?!?)
-    //  $results = $MailChimp->call("lists/list", array());
+    // $results1 = $MailChimp->call("lists/list", array());
+    // $results2 = $MailChimp->call("lists/interest-groupings", array('id' => 'f2fab1dfd4'));
 
     $results = $MailChimp->call("lists/batch-subscribe", array(
       'id' => $this->config['mailchimp_list_id'],
@@ -248,13 +287,12 @@ class MBC_UserRegistration
     ));
 
     if ($results['error_count'] > 0) {
-      echo 'mbc-registration-email - submitToMailChimp(): ' . $results->error_count . ' errors reported, batch failed!', "\n";
-	    echo 'code: '. $results->errorCode . "\n";
-	    echo 'msg: ' . $results->errorMessage . "\n";
+      echo 'mbc-registration-email - submitToMailChimp(): ' . $results['error_count'] . ' errors reported, batch failed!', "\n";
+	    echo 'errors: '. print_r($results['errors'], TRUE) . "\n";
     }
     else {
       echo 'mbc-registration-email - submitToMailChimp(): Success!', "\n";
-      echo ' [x] ' . $results->add_count . ' email addresses added / ' . $results->update_count . ' updated.', "\n";
+      echo ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.', "\n";
     }
 
   }
