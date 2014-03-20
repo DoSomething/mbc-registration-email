@@ -103,7 +103,7 @@ class MBC_UserRegistration
     $newSubscribers = array();
     $processedCount = 0;
 
-    while ($messageCount > 0 && $processedCount < 5) {
+    while ($messageCount > 0 && $processedCount < 300) {
       $messageDetails = $this->channel->basic_get($this->config['queue']['registrations']['name']);
       $messagePayload = json_decode($messageDetails->body);
       $newSubscribers[] = array(
