@@ -337,9 +337,14 @@ class MBC_UserRegistration
     if ($results['error_count'] > 0) {
       $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
       foreach ($results['errors'] as $error){
-        if ($error['code'] == 212 || $error['code'] == 220) { // unsubscribed, banned
+        if ($error['code'] == 212 || $error['code'] == 220 || $error['code'] == 213) { // unsubscribed, banned, bounced
           $status .= "**************\n";
           $status .= $error['error'] . "\n";
+        }
+        elseif ($error['code'] == -99) {  // fake
+          $status .= "%%%%%%%%%%%%%%\n";
+          $status .= $error['error'] . "\n";
+          unset($mbDeliveryTags[$error['email']['email']]);
         }
         else {
           $status .= $results['error_count'] . ' errors reported, batch failed!' . "\n";
