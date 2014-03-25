@@ -50,7 +50,7 @@ class MBC_UserRegistration
   /**
    * The number of queue entries to process in each session
    */
-  const BATCH_SIZE = 200;
+  const BATCH_SIZE = 100;
 
   /**
    * Constructor for MBC_UserRegistration
@@ -79,8 +79,8 @@ class MBC_UserRegistration
     $this->channel = $this->MessageBroker->setupQueue($config['queue']['campaign_signups']['name'], $this->channel);
 
     // Queue binding
-    $this->channel->queue_bind($config['queue']['registrations']['name'], $config['exchange']['name'], $config['routingKey']['registrations']);
-    $this->channel->queue_bind($config['queue']['campaign_signups']['name'], $config['exchange']['name'], $config['routingKey']['campaign_signups']);
+    $this->channel->queue_bind($config['queue']['registrations']['name'], $config['exchange']['name'], $config['queue']['registrations']['routingKey']);
+    $this->channel->queue_bind($config['queue']['campaign_signups']['name'], $config['exchange']['name'], $config['queue']['campaign_signups']['routingKey']);
 
   }
 
@@ -116,18 +116,16 @@ class MBC_UserRegistration
         'fname' => $messagePayload->merge_vars->FNAME,
         'uid' => $messagePayload->uid,
         'birthdate' => $messagePayload->birthdate,
+        'mobile' => isset($messagePayload->mobile) ? $messagePayload->mobile : '',
         'mb_delivery_tag' => $messageDetails->delivery_info['delivery_tag'],
       );
-      // @todo: move ack to submitToMailChimp() to only send ack after success
-      // response from MailChimp
-      $this->channel->basic_ack($messageDetails->delivery_info['delivery_tag']);
       $messageCount--;
       $processedCount++;
     }
 
-    $composedSubscriberList = $this->composeSubscriberSubmission($newSubscribers);
+    list($composedSubscriberList, $mbDeliveryTags) = $this->composeSubscriberSubmission($newSubscribers);
     if (count($composedSubscriberList) > 0) {
-      $results = $this->submitToMailChimp($composedSubscriberList);
+      $results = $this->submitToMailChimp($composedSubscriberList, $mbDeliveryTags);
     }
     else {
       $results = 'No new accounts to submit to MailChimp.';
@@ -165,41 +163,61 @@ class MBC_UserRegistration
       $messageDetails = $this->channel->basic_get($this->config['queue']['campaign_signups']['name']);
       $messagePayload = json_decode($messageDetails->body);
 
-      // HACK: Need "grouping" ID to assign interest groups
-      // Assume "Campaigns2014" grouping (10637) if $campaignSignup['mailchimp_grouping_id']
-      // not found in payload
-      if (!isset($messagePayload->merge_vars->mailchimp_grouping_id)) {
-        $messagePayload->merge_vars->mailchimp_grouping_id = 10637;
-      }
-      if (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_ID) && $messagePayload->merge_vars->MAILCHIMP_GROUP_ID == 393) {
-        $messagePayload->merge_vars->MAILCHIMP_GROUP_ID = 'PBJamSlam2014';
-      }
-      elseif (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_ID) && $messagePayload->merge_vars->MAILCHIMP_GROUP_ID == 401) {
-        $messagePayload->merge_vars->MAILCHIMP_GROUP_ID = 'ComebackClothes2014';
-      }
-      elseif (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_ID) && $messagePayload->merge_vars->MAILCHIMP_GROUP_ID == 237) {
-        $messagePayload->merge_vars->MAILCHIMP_GROUP_ID = 'MindOnMyMoney2013';
-        $messagePayload->merge_vars->mailchimp_grouping_id = 10621;
-      }
+      if (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_ID) ||
+          isset($messagePayload->merge_vars->MAILCHIMP_GROUP_NAME) ||
+          isset($messagePayload->merge_vars->mailchimp_group_id) ||
+          isset($messagePayload->merge_vars->mailchimp_group_name)) {
 
-      if (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_ID)) {
+        if (isset($messagePayload->merge_vars->MAILCHIMP_GROUPING_ID)) {
+          $messagePayload->mailchimp_grouping_id = $messagePayload->merge_vars->MAILCHIMP_GROUPING_ID;
+        }
+        if (!isset($messagePayload->merge_vars->mailchimp_grouping_id)) {
+          $messagePayload->mailchimp_grouping_id = 10637;
+        }
+
+        if (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_ID)) {
+
+          if ($messagePayload->merge_vars->MAILCHIMP_GROUP_ID == 393) {
+            $messagePayload->mailchimp_group_name = 'PBJamSlam2014';
+          }
+          elseif ($messagePayload->merge_vars->MAILCHIMP_GROUP_ID == 401) {
+            $messagePayload->mailchimp_group_name = 'ComebackClothes2014';
+          }
+          elseif ($messagePayload->merge_vars->MAILCHIMP_GROUP_ID == 237) {
+            $messagePayload->mailchimp_group_name = 'MindOnMyMoney2013';
+            $messagePayload->mailchimp_grouping_id = 10621;
+          }
+
+        }
+        elseif (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_NAME)) {
+          $messagePayload->mailchimp_group_name = $messagePayload->MAILCHIMP_GROUP_NAME;
+        }
+        else {
+          $messagePayload->mailchimp_group_name = $messagePayload->mailchimp_group_name;
+        }
+
         $campaignSignups[] = array(
           'email' => $messagePayload->email,
           'mb_delivery_tag' => $messageDetails->delivery_info['delivery_tag'],
-          'mailchimp_group_id' => $messagePayload->merge_vars->MAILCHIMP_GROUP_ID,
-          'mailchimp_grouping_id' => $messagePayload->merge_vars->mailchimp_grouping_id,
+          'mailchimp_group_name' => $messagePayload->mailchimp_group_name,
+          'mailchimp_grouping_id' => $messagePayload->mailchimp_grouping_id,
         );
+
       }
-      // @todo: move ack to submitToMailChimp() to only send ack after success
-      // response from MailChimp
-      $this->channel->basic_ack($messageDetails->delivery_info['delivery_tag']);
+      else {
+        // No group setting, skip entry in batch submission. Send acknowledgment
+        // to remove entry from queue
+        $this->channel->basic_ack($messageDetails->delivery_info['delivery_tag']);
+        echo $messagePayload->email . ' skipped, no group_name.',  "\n";
+      }
+
       $messageCount--;
       $messagesProcessed++;
     }
 
-    $composedSignupList = $this->composeSignupSubmission($campaignSignups);
+    list($composedSignupList, $mbDeliveryTags) = $this->composeSignupSubmission($campaignSignups);
     if (count($composedSignupList)) {
-      $results = $this->submitToMailChimp($composedSignupList);
+      $results = $this->submitToMailChimp($composedSignupList, $mbDeliveryTags);
     }
     else {
       $results = 'No new campaign signups accounts to submit to MailChimp.';
@@ -220,6 +238,9 @@ class MBC_UserRegistration
   private function composeSubscriberSubmission($newSubscribers = array()) {
 
     $composedSubscriberList = array();
+    $mbDeliveryTags = array();
+
+    $composedSubscriberList = array();
     foreach ($newSubscribers as $newSubscriber) {
       // Dont add address of users under 13
       if ($newSubscriber['birthdate'] < time() - (60 * 60 * 24 * 365 * 13)) {
@@ -232,18 +253,14 @@ class MBC_UserRegistration
               'MMERGE3' => $newSubscriber['fname'],
               'BDAY' => date('m/d', $newSubscriber['birthdate']),
               'BDAYFULL' => date('m/d/Y', $newSubscriber['birthdate']),
-              'groupings' => array(
-                0 => array(
-                  'id' => 10613, // DoSomething New Members
-                  'groups' => array('UserRegistration'),
-                ),
-              ),
+              'MMERGE7' => $newSubscriber['mobile'],
           ),
         );
+        $mbDeliveryTags[$newSubscriber['email']] = $newSubscriber['mb_delivery_tag'];
       }
     }
 
-    return $composedSubscriberList;
+    return array($composedSubscriberList, $mbDeliveryTags);
   }
 
   /**
@@ -257,7 +274,8 @@ class MBC_UserRegistration
    */
   private function composeSignupSubmission($campaignSignups = array()) {
 
-    // @todo: Rename mailchimp_group_id to mailchimp_interestgroup_name
+    $composedSubscriberList = array();
+    $mbDeliveryTags = array();
 
     foreach ($campaignSignups as $campaignSignup) {
       $composedSubscriberList[] = array(
@@ -268,14 +286,15 @@ class MBC_UserRegistration
           'groupings' => array(
             0 => array(
               'id' => $campaignSignup['mailchimp_grouping_id'], // Campaigns2013 (10621) or Campaigns2014 (10637)
-              'groups' => array($campaignSignup['mailchimp_group_id']),
+              'groups' => array($campaignSignup['mailchimp_group_name']),
             )
           ),
         ),
       );
+      $mbDeliveryTags[$campaignSignup['email']] = $campaignSignup['mb_delivery_tag'];
     }
 
-    return $composedSubscriberList;
+    return array($composedSubscriberList, $mbDeliveryTags);
   }
 
   /**
@@ -284,11 +303,14 @@ class MBC_UserRegistration
    * @param array $composedBatch
    *   The list of email address to be submitted to MailChimp
    *
+   * @param array $mbDeliveryTags
+   *   A list of RabbitMQ delivery tags being processed in batch.
+   *
    * @return array
    *   A list of the RabbitMQ queue entry IDs that have been successfully
    *   submitted to MailChimp.
    */
-  private function submitToMailChimp($composedBatch = array()) {
+  private function submitToMailChimp($composedBatch = array(), $mbDeliveryTags = array()) {
 
     $MailChimp = new \Drewm\MailChimp($this->credentials['mailchimp_apikey']);
 
@@ -302,6 +324,7 @@ class MBC_UserRegistration
         // Lookup list details including "mailchimp_list_id"
     // -> 71893 "Do Something Members" is f2fab1dfd4 (who knows why?!?)
 
+    $acknowledgeOK = TRUE;
     $results = $MailChimp->call("lists/batch-subscribe", array(
       'id' => $this->config['mailchimp_list_id'],
       'batch' => $composedBatch,
@@ -310,18 +333,32 @@ class MBC_UserRegistration
       'replace_interests' => FALSE
     ));
 
-    // @todo: send ack based on success response from MailChimp
-    // $this->channel->basic_ack($messageDetails->delivery_info['delivery_tag']);
-
     $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . "\n";
     if ($results['error_count'] > 0) {
       $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
-      $status .= $results['error_count'] . ' errors reported, batch failed!' . "\n";
-	    $status .= 'errors: '. print_r($results['errors'], TRUE) . "\n";
+      foreach ($results['errors'] as $error){
+        if ($error['code'] == 212 || $error['code'] == 220) { // unsubscribed, banned
+          $status .= "**************\n";
+          $status .= $error['error'] . "\n";
+        }
+        else {
+          $status .= $results['error_count'] . ' errors reported, batch failed!' . "\n";
+	        $status .= 'errors: '. print_r($results['errors'], TRUE) . "\n";
+          $acknowledgeOK = FALSE;
+        }
+      }
+
     }
     else {
       $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . "\n";
       $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
+    }
+
+    // Acknowledge submissions have been processed by MailChimp
+    if ($acknowledgeOK) {
+      foreach($mbDeliveryTags as $tagEmail => $mbDeliveryTag) {
+        $this->channel->basic_ack($mbDeliveryTag);
+      }
     }
 
     return $status;
@@ -355,6 +392,7 @@ $config = array(
       'durable' => getenv("MB_USER_REGISTRATION_QUEUE_DURABLE"),
       'exclusive' => getenv("MB_USER_REGISTRATION_QUEUE_EXCLUSIVE"),
       'auto_delete' => getenv("MB_USER_REGISTRATION_QUEUE_AUTO_DELETE"),
+      'routingKey' => getenv("MB_USER_REGISTRATION_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN"),
     ),
     'campaign_signups' => array(
       'name' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE"),
@@ -362,30 +400,20 @@ $config = array(
       'durable' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_DURABLE"),
       'exclusive' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_EXCLUSIVE"),
       'auto_delete' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_AUTO_DELETE"),
+      'routingKey' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN"),
     ),
-    'transactional' => array(
-      'name' => getenv("MB_TRANSACTIONAL_QUEUE"),
-      'passive' => getenv("MB_TRANSACTIONAL_QUEUE_PASSIVE"),
-      'durable' => getenv("MB_TRANSACTIONAL_QUEUE_DURABLE"),
-      'exclusive' => getenv("MB_TRANSACTIONAL_QUEUE_EXCLUSIVE"),
-      'auto_delete' => getenv("MB_TRANSACTIONAL_QUEUE_AUTO_DELETE"),
-    )
-  ),
-  'routingKey' => array(
-    'registrations' => getenv("MB_USER_REGISTRATION_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN"),
-    'campaign_signups' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN"),
-    'transactional' => getenv("MB_TRANSACTIONAL_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN")
+
   ),
   'mailchimp_list_id' => getenv("MAILCHIMP_LIST_ID"),
 );
 
 // Kick off
-$MBC_UserRegistration = new MBC_UserRegistration($credentials, $config);
+$mbcUserRegistration = new MBC_UserRegistration($credentials, $config);
 
 // Process new registrations
-$status = $MBC_UserRegistration->consumeNewRegistrationsQueue();
+$status = $mbcUserRegistration->consumeNewRegistrationsQueue();
 print $status;
 
 // Process campaign signups
-$status = $MBC_UserRegistration->consumeMailchimpCampaignSignupQueue();
+$status = $mbcUserRegistration->consumeMailchimpCampaignSignupQueue();
 print $status;
