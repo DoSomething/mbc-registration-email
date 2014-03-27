@@ -75,12 +75,12 @@ class MBC_UserRegistration
     $this->channel = $this->MessageBroker->setupExchange($config['exchange']['name'], $config['exchange']['type'], $this->channel);
 
     // Queues - userRegistrationQueue and mailchimpCampaignSignupQueue
-    $this->channel = $this->MessageBroker->setupQueue($config['queue']['registrations']['name'], $this->channel);
-    $this->channel = $this->MessageBroker->setupQueue($config['queue']['campaign_signups']['name'], $this->channel);
+    list($this->channel, ) = $this->MessageBroker->setupQueue($config['queue']['registrations']['name'], $this->channel);
+    list($this->channel, ) = $this->MessageBroker->setupQueue($config['queue']['campaign_signups']['name'], $this->channel);
 
     // Queue binding
-    $this->channel->queue_bind($config['queue']['registrations']['name'], $config['exchange']['name'], $config['queue']['registrations']['routingKey']);
-    $this->channel->queue_bind($config['queue']['campaign_signups']['name'], $config['exchange']['name'], $config['queue']['campaign_signups']['routingKey']);
+    $this->channel->queue_bind($config['queue']['registrations']['name'], $config['exchange']['name'], $config['queue']['registrations']['bindingKey']);
+    $this->channel->queue_bind($config['queue']['campaign_signups']['name'], $config['exchange']['name'], $config['queue']['campaign_signups']['bindingKey']);
 
   }
 
@@ -94,11 +94,7 @@ class MBC_UserRegistration
   public function consumeNewRegistrationsQueue() {
 
     // Get the status details of the queue by requesting a declare
-    $status = $this->channel->queue_declare($this->config['queue']['registrations']['name'],
-      $this->config['queue']['registrations']['passive'],
-      $this->config['queue']['registrations']['durable'],
-      $this->config['queue']['registrations']['exclusive'],
-      $this->config['queue']['registrations']['auto_delete']);
+    list($this->channel, $status) = $this->MessageBroker->setupQueue($this->config['queue']['registrations']['name'], $this->channel);
 
     $messageCount = $status[1];
     // @todo: Respond to unacknowledged messages
@@ -110,13 +106,13 @@ class MBC_UserRegistration
 
     while ($messageCount > 0 && $processedCount < self::BATCH_SIZE) {
       $messageDetails = $this->channel->basic_get($this->config['queue']['registrations']['name']);
-      $messagePayload = json_decode($messageDetails->body);
+      $messagePayload = unserialize($messageDetails->body);
       $newSubscribers[] = array(
-        'email' => $messagePayload->email,
-        'fname' => $messagePayload->merge_vars->FNAME,
-        'uid' => $messagePayload->uid,
-        'birthdate' => $messagePayload->birthdate,
-        'mobile' => isset($messagePayload->mobile) ? $messagePayload->mobile : '',
+        'email' => $messagePayload['email'],
+        'fname' => $messagePayload['merge_vars']['FNAME'],
+        'uid' => $messagePayload['uid'],
+        'birthdate' => $messagePayload['birthdate'],
+        'mobile' => isset($messagePayload['mobile']) ? $messagePayload['mobile'] : '',
         'mb_delivery_tag' => $messageDetails->delivery_info['delivery_tag'],
       );
       $messageCount--;
@@ -145,11 +141,7 @@ class MBC_UserRegistration
   public function consumeMailchimpCampaignSignupQueue() {
 
     // Get the status details of the queue by requesting a declare
-    $status = $this->channel->queue_declare($this->config['queue']['campaign_signups']['name'],
-      $this->config['queue']['campaign_signups']['passive'],
-      $this->config['queue']['campaign_signups']['durable'],
-      $this->config['queue']['campaign_signups']['exclusive'],
-      $this->config['queue']['campaign_signups']['auto_delete']);
+    list($this->channel, $status) = $this->MessageBroker->setupQueue($this->config['queue']['campaign_signups']['name'], $this->channel);
 
     $messageCount = $status[1];
     // @todo: Respond to unacknowledged messages
@@ -161,46 +153,49 @@ class MBC_UserRegistration
 
     while ($messageCount > 0 && $messagesProcessed < self::BATCH_SIZE) {
       $messageDetails = $this->channel->basic_get($this->config['queue']['campaign_signups']['name']);
-      $messagePayload = json_decode($messageDetails->body);
+      $messagePayload = unserialize($messageDetails->body);
 
-      if (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_ID) ||
-          isset($messagePayload->merge_vars->MAILCHIMP_GROUP_NAME) ||
-          isset($messagePayload->merge_vars->mailchimp_group_id) ||
-          isset($messagePayload->merge_vars->mailchimp_group_name)) {
+      if (isset($messagePayload['merge_vars']['MAILCHIMP_GROUP_ID']) ||
+          isset($messagePayload['merge_vars']['MAILCHIMP_GROUP_NAME']) ||
+          isset($messagePayload['merge_vars']['mailchimp_group_id']) ||
+          isset($messagePayload['merge_vars']['mailchimp_group_name'])) {
 
-        if (isset($messagePayload->merge_vars->MAILCHIMP_GROUPING_ID)) {
-          $messagePayload->mailchimp_grouping_id = $messagePayload->merge_vars->MAILCHIMP_GROUPING_ID;
+        if (isset($messagePayload['merge_vars']['MAILCHIMP_GROUPING_ID'])) {
+          $messagePayload['mailchimp_grouping_id'] = $messagePayload['merge_vars']['MAILCHIMP_GROUPING_ID'];
         }
-        if (!isset($messagePayload->merge_vars->mailchimp_grouping_id)) {
-          $messagePayload->mailchimp_grouping_id = 10637;
-        }
-
-        if (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_ID)) {
-
-          if ($messagePayload->merge_vars->MAILCHIMP_GROUP_ID == 393) {
-            $messagePayload->mailchimp_group_name = 'PBJamSlam2014';
-          }
-          elseif ($messagePayload->merge_vars->MAILCHIMP_GROUP_ID == 401) {
-            $messagePayload->mailchimp_group_name = 'ComebackClothes2014';
-          }
-          elseif ($messagePayload->merge_vars->MAILCHIMP_GROUP_ID == 237) {
-            $messagePayload->mailchimp_group_name = 'MindOnMyMoney2013';
-            $messagePayload->mailchimp_grouping_id = 10621;
-          }
-
-        }
-        elseif (isset($messagePayload->merge_vars->MAILCHIMP_GROUP_NAME)) {
-          $messagePayload->mailchimp_group_name = $messagePayload->MAILCHIMP_GROUP_NAME;
+        if (!isset($messagePayload['merge_vars']['mailchimp_grouping_id'])) {
+          $messagePayload['mailchimp_grouping_id'] = 10637;
         }
         else {
-          $messagePayload->mailchimp_group_name = $messagePayload->mailchimp_group_name;
+          $messagePayload['mailchimp_grouping_id'] = $messagePayload['merge_vars']['mailchimp_grouping_id'];
+        }
+
+        if (isset($messagePayload['merge_vars']['MAILCHIMP_GROUP_ID'])) {
+
+          if ($messagePayload['merge_vars']['MAILCHIMP_GROUP_ID'] == 393) {
+            $messagePayload['mailchimp_group_name'] = 'PBJamSlam2014';
+          }
+          elseif ($messagePayload['merge_vars']['MAILCHIMP_GROUP_ID'] == 401) {
+            $messagePayload['mailchimp_group_name'] = 'ComebackClothes2014';
+          }
+          elseif ($messagePayload['merge_vars']['MAILCHIMP_GROUP_ID'] == 237) {
+            $messagePayload['mailchimp_group_name'] = 'MindOnMyMoney2013';
+            $messagePayload['mailchimp_grouping_id'] = 10621;
+          }
+
+        }
+        elseif (isset($messagePayload['merge_vars']['MAILCHIMP_GROUP_NAME'])) {
+          $messagePayload['mailchimp_group_name'] = $messagePayload['merge_vars']['MAILCHIMP_GROUP_NAME'];
+        }
+        else {
+          $messagePayload['mailchimp_group_name'] = $messagePayload['merge_vars']['mailchimp_group_name'];
         }
 
         $campaignSignups[] = array(
-          'email' => $messagePayload->email,
+          'email' => $messagePayload['email'],
           'mb_delivery_tag' => $messageDetails->delivery_info['delivery_tag'],
-          'mailchimp_group_name' => $messagePayload->mailchimp_group_name,
-          'mailchimp_grouping_id' => $messagePayload->mailchimp_grouping_id,
+          'mailchimp_group_name' => $messagePayload['mailchimp_group_name'],
+          'mailchimp_grouping_id' => $messagePayload['mailchimp_grouping_id'],
         );
 
       }
@@ -208,7 +203,7 @@ class MBC_UserRegistration
         // No group setting, skip entry in batch submission. Send acknowledgment
         // to remove entry from queue
         $this->channel->basic_ack($messageDetails->delivery_info['delivery_tag']);
-        echo $messagePayload->email . ' skipped, no group_name.',  "\n";
+        echo $messagePayload['email'] . ' skipped, no group_name.',  "\n";
       }
 
       $messageCount--;
@@ -397,7 +392,7 @@ $config = array(
       'durable' => getenv("MB_USER_REGISTRATION_QUEUE_DURABLE"),
       'exclusive' => getenv("MB_USER_REGISTRATION_QUEUE_EXCLUSIVE"),
       'auto_delete' => getenv("MB_USER_REGISTRATION_QUEUE_AUTO_DELETE"),
-      'routingKey' => getenv("MB_USER_REGISTRATION_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN"),
+      'bindingKey' => getenv("MB_USER_REGISTRATION_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN"),
     ),
     'campaign_signups' => array(
       'name' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE"),
@@ -405,7 +400,7 @@ $config = array(
       'durable' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_DURABLE"),
       'exclusive' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_EXCLUSIVE"),
       'auto_delete' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_AUTO_DELETE"),
-      'routingKey' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN"),
+      'bindingKey' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN"),
     ),
 
   ),
