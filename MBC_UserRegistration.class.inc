@@ -142,41 +142,7 @@ class MBC_UserRegistration
       $messageDetails = $this->channel->basic_get($this->config['queue']['campaign_signups']['name']);
       $messagePayload = unserialize($messageDetails->body);
 
-      if (isset($messagePayload['merge_vars']['MAILCHIMP_GROUP_ID']) ||
-          isset($messagePayload['merge_vars']['MAILCHIMP_GROUP_NAME']) ||
-          isset($messagePayload['merge_vars']['mailchimp_group_id']) ||
-          isset($messagePayload['merge_vars']['mailchimp_group_name'])) {
-
-        if (isset($messagePayload['merge_vars']['MAILCHIMP_GROUPING_ID'])) {
-          $messagePayload['mailchimp_grouping_id'] = $messagePayload['merge_vars']['MAILCHIMP_GROUPING_ID'];
-        }
-        if (!isset($messagePayload['merge_vars']['mailchimp_grouping_id'])) {
-          $messagePayload['mailchimp_grouping_id'] = 10637;
-        }
-        else {
-          $messagePayload['mailchimp_grouping_id'] = $messagePayload['merge_vars']['mailchimp_grouping_id'];
-        }
-
-        if (isset($messagePayload['merge_vars']['MAILCHIMP_GROUP_ID'])) {
-
-          if ($messagePayload['merge_vars']['MAILCHIMP_GROUP_ID'] == 393) {
-            $messagePayload['mailchimp_group_name'] = 'PBJamSlam2014';
-          }
-          elseif ($messagePayload['merge_vars']['MAILCHIMP_GROUP_ID'] == 401) {
-            $messagePayload['mailchimp_group_name'] = 'ComebackClothes2014';
-          }
-          elseif ($messagePayload['merge_vars']['MAILCHIMP_GROUP_ID'] == 237) {
-            $messagePayload['mailchimp_group_name'] = 'MindOnMyMoney2013';
-            $messagePayload['mailchimp_grouping_id'] = 10621;
-          }
-
-        }
-        elseif (isset($messagePayload['merge_vars']['MAILCHIMP_GROUP_NAME'])) {
-          $messagePayload['mailchimp_group_name'] = $messagePayload['merge_vars']['MAILCHIMP_GROUP_NAME'];
-        }
-        else {
-          $messagePayload['mailchimp_group_name'] = $messagePayload['merge_vars']['mailchimp_group_name'];
-        }
+      if (isset($messagePayload['mailchimp_group_name']) && $messagePayload['mailchimp_group_name'] != '') {
 
         $campaignSignups[] = array(
           'email' => $messagePayload['email'],
@@ -316,6 +282,8 @@ class MBC_UserRegistration
     ));
 
     $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . "\n";
+    $results['add_count'] = 0;
+    $results['update_count'] = 0;
     if ($results['error_count'] > 0) {
       $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
       foreach ($results['errors'] as $error){
