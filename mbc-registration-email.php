@@ -16,11 +16,6 @@ require_once __DIR__ . '/vendor/autoload.php';
 require __DIR__ . '/mb-secure-config.inc';
 require __DIR__ . '/mb-config.inc';
 
-$bla = FALSE;
-if ($bla) {
-  $bla = TRUE;
-}
-
 require __DIR__ . '/MBC_UserRegistration.class.inc';
 
 // Settings
