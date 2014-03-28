@@ -16,7 +16,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 require __DIR__ . '/mb-secure-config.inc';
 require __DIR__ . '/mb-config.inc';
 
-require __DIR__ . 'MBC_UserRegistration.class.inc';
+require __DIR__ . '/MBC_UserRegistration.class.inc';
 
 // Settings
 $credentials = array(
@@ -63,8 +63,7 @@ $mbcUserRegistration = new MBC_UserRegistration($credentials, $config);
 
 // Process new registrations
 $status = $mbcUserRegistration->consumeNewRegistrationsQueue();
-print $status;
 
 // Process campaign signups
-$status = $mbcUserRegistration->consumeMailchimpCampaignSignupQueue();
+$status .= $mbcUserRegistration->consumeMailchimpCampaignSignupQueue();
 print $status;
