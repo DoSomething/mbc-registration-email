@@ -1,12 +1,33 @@
 <?php
 /**
- * MBC_UserStatus class - report changes in a user account status.
+ * MBP_UserStatus class - report changes in a user account status.
  */
-class MBC_UserStatus
+class MBP_UserStatus
 {
 
+  /**
+   * Message Broker object that details the connection to RabbitMQ.
+   *
+   * @var object
+   */
+  private $MessageBroker;
+
+  /**
+   * Collection of configuration settings.
+   *
+   * @var array
+   */
+  private $config;
+
+  /**
+   * Collection of secret connection settings.
+   *
+   * @var array
+   */
+  private $credentials;
+
  /**
-   * Constructor for MBC_UserRegistration
+   * Constructor for MBP_UserStatus
    *
    * @param array $credentials
    *   Secret settings from mb-secure-config.inc
@@ -21,17 +42,6 @@ class MBC_UserStatus
 
     // Setup RabbitMQ connection
     $this->MessageBroker = new MessageBroker($credentials, $config);
-    $connection = $this->MessageBroker->connection;
-    $this->channel = $connection->channel();
-
-    // Exchange
-    $this->channel = $this->MessageBroker->setupExchange($config['exchange']['name'], $config['exchange']['type'], $this->channel);
-
-    // Queue - userMailchimpStatusQueue
-    list($this->channel, ) = $this->MessageBroker->setupQueue($config['queue']['userMailchimpStatus']['name'], $this->channel);
-
-    // Queue binding
-    $this->channel->queue_bind($config['queue']['registrations']['name'], $config['exchange']['name'], $config['queue']['userMailchimpStatus']['bindingKey']);
 
   }
 
@@ -46,6 +56,11 @@ class MBC_UserStatus
    */
   public function reportEmailErrors($errorDetails) {
 
+    $payload = serialize($errorDetails);
+    $status = $this->MessageBroker->publishMessage($payload);
+
     return $status;
 
   }
+
+}

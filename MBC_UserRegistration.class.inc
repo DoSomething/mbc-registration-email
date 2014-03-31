@@ -272,6 +272,8 @@ class MBC_UserRegistration
     // groups to the member's interest groups (optional, defaults to true)
         // Lookup list details including "mailchimp_list_id"
     // -> 71893 "Do Something Members" is f2fab1dfd4 (who knows why?!?)
+    $results['add_count'] = 0;
+    $results['update_count'] = 0;
 
     $results = $MailChimp->call("lists/batch-subscribe", array(
       'id' => $this->config['mailchimp_list_id'],
@@ -282,8 +284,6 @@ class MBC_UserRegistration
     ));
 
     $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . "\n";
-    $results['add_count'] = 0;
-    $results['update_count'] = 0;
     if ($results['error_count'] > 0) {
       $this->updateUserMailchimpError($results['errors']);
     }
@@ -313,39 +313,39 @@ class MBC_UserRegistration
 
     // Config value
     $credentials = array(
-
+      'host' =>  getenv("RABBITMQ_HOST"),
+      'port' => getenv("RABBITMQ_PORT"),
+      'username' => getenv("RABBITMQ_USERNAME"),
+      'password' => getenv("RABBITMQ_PASSWORD"),
+      'vhost' => getenv("RABBITMQ_VHOST"),
     );
+    $credentials['mailchimp_apikey'] = getenv("MAILCHIMP_APIKEY");
 
     $config = array(
-
+      'exchange' => array(
+        'name' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE"),
+        'type' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_TYPE"),
+        'passive' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_PASSIVE"),
+        'durable' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_DURABLE"),
+        'auto_delete' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_AUTO_DELETE"),
+      ),
+      'queue' => array(
+        'userCampaignActivity' => array(
+          'name' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE"),
+          'passive' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_PASSIVE"),
+          'durable' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_DURABLE"),
+          'exclusive' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_EXCLUSIVE"),
+          'auto_delete' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_AUTO_DELETE"),
+        ),
+      ),
     );
 
     // Kick off
     $mbpUserStatus = new MBP_UserStatus($credentials, $config);
 
     // Add extries for each error encountered to the directUserStatusExchange
-    foreach ($results['errors'] as $error){
-
-    /*
-      if ($error['code'] == 212 || $error['code'] == 220 || $error['code'] == 213) { // unsubscribed, banned, bounced
-        $status .= "**************\n";
-        $status .= $error['error'] . "\n";
-      }
-      elseif ($error['code'] == -99) {  // fake
-        $status .= "%%%%%%%%%%%%%%\n";
-        $status .= $error['error'] . "\n";
-        unset($mbDeliveryTags[$error['email']['email']]);
-      }
-      else {
-        $status .= $results['error_count'] . ' errors reported, batch failed!' . "\n";
-        $status .= 'errors: '. print_r($results['errors'], TRUE) . "\n";
-        $acknowledgeOK = FALSE;
-      }
-    */
-
-       // Submit errors
+    foreach ($errors as $errorDetails){
       $status = $mbpUserStatus->reportEmailErrors($errorDetails);
-
     }
 
     return $status;
