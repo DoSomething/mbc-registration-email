@@ -262,6 +262,7 @@ class MBC_UserRegistration
 
     $MailChimp = new \Drewm\MailChimp($this->credentials['mailchimp_apikey']);
 
+    // Debugging
     // $results1 = $MailChimp->call("lists/list", array());
     // $results2 = $MailChimp->call("lists/interest-groupings", array('id' => 'f2fab1dfd4'));
 
@@ -271,8 +272,9 @@ class MBC_UserRegistration
     // groups to the member's interest groups (optional, defaults to true)
         // Lookup list details including "mailchimp_list_id"
     // -> 71893 "Do Something Members" is f2fab1dfd4 (who knows why?!?)
+    $results['add_count'] = 0;
+    $results['update_count'] = 0;
 
-    $acknowledgeOK = TRUE;
     $results = $MailChimp->call("lists/batch-subscribe", array(
       'id' => $this->config['mailchimp_list_id'],
       'batch' => $composedBatch,
@@ -282,38 +284,68 @@ class MBC_UserRegistration
     ));
 
     $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . "\n";
-    $results['add_count'] = 0;
-    $results['update_count'] = 0;
     if ($results['error_count'] > 0) {
-      $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
-      foreach ($results['errors'] as $error){
-        if ($error['code'] == 212 || $error['code'] == 220 || $error['code'] == 213) { // unsubscribed, banned, bounced
-          $status .= "**************\n";
-          $status .= $error['error'] . "\n";
-        }
-        elseif ($error['code'] == -99) {  // fake
-          $status .= "%%%%%%%%%%%%%%\n";
-          $status .= $error['error'] . "\n";
-          unset($mbDeliveryTags[$error['email']['email']]);
-        }
-        else {
-          $status .= $results['error_count'] . ' errors reported, batch failed!' . "\n";
-	        $status .= 'errors: '. print_r($results['errors'], TRUE) . "\n";
-          $acknowledgeOK = FALSE;
-        }
-      }
-
+      $this->updateUserMailchimpError($results['errors']);
     }
     else {
       $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . "\n";
-      $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
+    }
+    $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
+
+    // Acknowledge submissions that been processed
+    foreach($mbDeliveryTags as $tagEmail => $mbDeliveryTag) {
+      $this->channel->basic_ack($mbDeliveryTag);
     }
 
-    // Acknowledge submissions have been processed by MailChimp
-    if ($acknowledgeOK) {
-      foreach($mbDeliveryTags as $tagEmail => $mbDeliveryTag) {
-        $this->channel->basic_ack($mbDeliveryTag);
-      }
+    return $status;
+
+  }
+
+  /**
+   * A lists/batch-subscribe will report errors on any of the email addresses
+   * in the batch. The errors will be logged in the UserAPI for use by other
+   * parts of the Message Broker system.
+   *
+   * @param array $errors
+   *   A list of RabbitMQ delivery tags being processed in batch.
+   */
+  private function updateUserMailchimpError($errors) {
+
+    // Config value
+    $credentials = array(
+      'host' =>  getenv("RABBITMQ_HOST"),
+      'port' => getenv("RABBITMQ_PORT"),
+      'username' => getenv("RABBITMQ_USERNAME"),
+      'password' => getenv("RABBITMQ_PASSWORD"),
+      'vhost' => getenv("RABBITMQ_VHOST"),
+    );
+    $credentials['mailchimp_apikey'] = getenv("MAILCHIMP_APIKEY");
+
+    $config = array(
+      'exchange' => array(
+        'name' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE"),
+        'type' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_TYPE"),
+        'passive' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_PASSIVE"),
+        'durable' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_DURABLE"),
+        'auto_delete' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_AUTO_DELETE"),
+      ),
+      'queue' => array(
+        'userCampaignActivity' => array(
+          'name' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE"),
+          'passive' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_PASSIVE"),
+          'durable' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_DURABLE"),
+          'exclusive' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_EXCLUSIVE"),
+          'auto_delete' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_AUTO_DELETE"),
+        ),
+      ),
+    );
+
+    // Kick off
+    $mbpUserStatus = new MBP_UserStatus($credentials, $config);
+
+    // Add extries for each error encountered to the directUserStatusExchange
+    foreach ($errors as $errorDetails){
+      $status = $mbpUserStatus->reportEmailErrors($errorDetails);
     }
 
     return $status;
