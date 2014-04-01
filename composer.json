@@ -1,8 +1,8 @@
 {
     "name": "DoSomething/mbc-registration-email",
     "type": "library",
-    "version": "0.1.6",
-    "description": "A consumer app for the Message Broker system that consumes entries on the userRegistrationQueue. Queue payload values determine the account created on MailChimp.",
+    "version": "0.1.7",
+    "description": "A consumer app for the Message Broker system that consumes entries on the userRegistrationQueue. Queue payload values determine the account created on Mailchimp. Error messages returned about submitted email addresses submitted to Mailchimp are sent to the userMailchimpStatusQueue.",
     "keywords": ["message broker"],
     "homepage": "https://github.com/DoSomething/mbc-registration-email",
     "license" : "MIT",
