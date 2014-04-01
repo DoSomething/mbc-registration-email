@@ -330,7 +330,7 @@ class MBC_UserRegistration
         'auto_delete' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_AUTO_DELETE"),
       ),
       'queue' => array(
-        'userCampaignActivity' => array(
+        'userMailchimpStatus' => array(
           'name' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE"),
           'passive' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_PASSIVE"),
           'durable' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_DURABLE"),
