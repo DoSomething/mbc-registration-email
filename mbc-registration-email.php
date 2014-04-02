@@ -67,10 +67,13 @@ $mbcUserRegistration = new MBC_UserRegistration($credentials, $config);
 // consumeNewRegistrationsQueue and consumeMailchimpCampaignSignupQueue
 if (extension_loaded('newrelic')) {
   $newrelicApplication  = geten('NEWRELIC_APP_NAME_RABBIT1');
+  // @todo: Not sure how the application name setting works in New Relic,
+  //    keep these as possible sub application names values if the basic setup
+  //    works. Clean thus up after the test on production.
   // $newrelicApplication .= ';' . 'mbc-registration-email';
   // $newrelicApplication .= ';' . 'consumeNewRegistrationsQueue';
   newrelic_set_appname($newrelicApplication);
-  newrelic_start_transaction( $newrelicApplication );
+  newrelic_start_transaction($newrelicApplication);
 }
 
 // Process new registrations
@@ -78,7 +81,7 @@ $status = $mbcUserRegistration->consumeNewRegistrationsQueue();
 
 if (extension_loaded('newrelic')) {
   newrelic_end_transaction();
-  newrelic_start_transaction( $newrelicApplication );
+  newrelic_start_transaction($newrelicApplication);
 }
 
 // Process campaign signups
