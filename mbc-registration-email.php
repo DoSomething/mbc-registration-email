@@ -66,7 +66,7 @@ $mbcUserRegistration = new MBC_UserRegistration($credentials, $config);
 // Break monitoring into two seperate transactions:
 // consumeNewRegistrationsQueue and consumeMailchimpCampaignSignupQueue
 if (extension_loaded('newrelic')) {
-  $newrelicApplication  = getvar('NEWRELIC_APP_NAME_RABBIT1');
+  $newrelicApplication  = geten('NEWRELIC_APP_NAME_RABBIT1');
   // $newrelicApplication .= ';' . 'mbc-registration-email';
   // $newrelicApplication .= ';' . 'consumeNewRegistrationsQueue';
   newrelic_set_appname($newrelicApplication);
