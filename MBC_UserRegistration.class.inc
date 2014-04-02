@@ -33,7 +33,7 @@ class MBC_UserRegistration
    * @var array
    */
   private $credentials;
-  
+
   /**
    * The number of queue entries to process in each session
    */
@@ -319,9 +319,9 @@ class MBC_UserRegistration
       'password' => getenv("RABBITMQ_PASSWORD"),
       'vhost' => getenv("RABBITMQ_VHOST"),
     );
-    $credentials['mailchimp_apikey'] = getenv("MAILCHIMP_APIKEY");
 
     $config = array(
+      'routingKey' => getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY'),
       'exchange' => array(
         'name' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE"),
         'type' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_TYPE"),
