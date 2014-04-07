@@ -63,4 +63,32 @@ class MBP_UserStatus
 
   }
 
+  /**
+   * Resubscribe email address with interest group assignment - submit queue
+   * entry to mailchimpCampaignSignupQueue
+   *
+   * @param array $errorDetails
+   *   The error details reported when the email address was submitted as a part
+   *   of a batch submission.
+   *
+   * @param array $composedBatch
+   *   The details of the batch data sent to Mailchimp. The interest group
+   *   details will be extractacted for the /lists/subscribe submission to
+   *   Mailchimp
+   *
+   * @return string $status
+   *   The results of the submission to the UserAPI
+   */
+  public function resubscribeEmail($errorDetails, $composedBatch) {
+
+    // Lookup the group assignment details from $composedBatch by the email
+    // address in $errorDetails
+
+    // Create queue entry - mailchimpCampaignSignupQueue
+
+    $payload = serialize($resubscribeDetails);
+    $status = $this->MessageBroker->publishMessage($payload);
+
+  }
+
 }
