@@ -77,7 +77,7 @@ class MBP_UserStatus
    * @return string $status
    *   The results of the submission to the UserAPI
    */
-  public function resubscribeEmail($errorDetails, $composedBatch) {
+  public static function resubscribeEmail($errorDetails, $composedBatch) {
 
     // Lookup the group assignment details from $composedBatch by the email
     // address in $errorDetails

@@ -349,6 +349,7 @@ class MBC_UserRegistration
           'bindingKey' => getenv('MB_USER_MAILCHIMP_STATUS_QUEUE_BINDING_KEY'),
         ),
       ),
+      'routingKey' => getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY'),
       'mailchimp_list_id' => getenv("MAILCHIMP_LIST_ID"),
     );
 
@@ -359,11 +360,9 @@ class MBC_UserRegistration
       // transaction / the user signing up for a campaign is confirmation that
       // they want to resubscribe.
       if ($errorDetails['code'] == 212) {
-        $mbpUserStatus = new MBP_UserStatus($credentials, $config);
-        $status = $mbpUserStatus->resubscribeEmail($errorDetails, $composedBatch);
+        $status = MBP_UserStatus::resubscribeEmail($errorDetails, $composedBatch);
       }
       else {
-        $config['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
         $mbpUserStatus = new MBP_UserStatus($credentials, $config);
         $status = $mbpUserStatus->reportEmailErrors($errorDetails);
       }
