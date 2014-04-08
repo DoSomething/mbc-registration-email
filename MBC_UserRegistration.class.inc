@@ -284,17 +284,23 @@ class MBC_UserRegistration
     ));
 
     $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . "\n";
-    if ($results['error_count'] > 0) {
-      $this->updateUserMailchimpError($results['errors'], $composedBatch);
+    if ($results != 0) {
+      if ($results['error_count'] > 0) {
+        $this->updateUserMailchimpError($results['errors'], $composedBatch);
+      }
+      else {
+        $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . "\n";
+      }
+      $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
+
+      // Acknowledge submissions that been processed
+      foreach($mbDeliveryTags as $tagEmail => $mbDeliveryTag) {
+        $this->channel->basic_ack($mbDeliveryTag);
+      }
     }
     else {
-      $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . "\n";
-    }
-    $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
-
-    // Acknowledge submissions that been processed
-    foreach($mbDeliveryTags as $tagEmail => $mbDeliveryTag) {
-      $this->channel->basic_ack($mbDeliveryTag);
+      $this->channel->basic_recover(TRUE);
+      $status .= 'ERROR: No results returned from Mailchimp lists/batch-subscribe submisison.';
     }
 
     return $status;
@@ -323,6 +329,7 @@ class MBC_UserRegistration
       'password' => getenv("RABBITMQ_PASSWORD"),
       'vhost' => getenv("RABBITMQ_VHOST"),
     );
+    $credentials['mailchimp_apikey'] = getenv("MAILCHIMP_APIKEY");
 
     $config = array(
       'exchange' => array(
@@ -341,15 +348,8 @@ class MBC_UserRegistration
           'auto_delete' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_AUTO_DELETE"),
           'bindingKey' => getenv('MB_USER_MAILCHIMP_STATUS_QUEUE_BINDING_KEY'),
         ),
-        'userMailchimpResubscribe' => array(
-          'name' => getenv("MB_USER_MAILCHIMP_RESUBSCRIBE_QUEUE"),
-          'passive' => getenv("MB_USER_MAILCHIMP_RESUBSCRIBE_QUEUE_PASSIVE"),
-          'durable' => getenv("MB_USER_MAILCHIMP_RESUBSCRIBE_QUEUE_DURABLE"),
-          'exclusive' => getenv("MB_USER_MAILCHIMP_RESUBSCRIBE_QUEUE_EXCLUSIVE"),
-          'auto_delete' => getenv("MB_USER_MAILCHIMP_RESUBSCRIBE_QUEUE_AUTO_DELETE"),
-          'bindingKey' => getenv('MB_USER_MAILCHIMP_RESUBSCRIBE_QUEUE_BINDING_KEY'),
-        ),
       ),
+      'mailchimp_list_id' => getenv("MAILCHIMP_LIST_ID"),
     );
 
     // Add extries for each error encountered to the directUserStatusExchange
@@ -359,16 +359,11 @@ class MBC_UserRegistration
       // transaction / the user signing up for a campaign is confirmation that
       // they want to resubscribe.
       if ($errorDetails['code'] == 212) {
-        $config = array(
-          'routingKey' => getenv('MB_USER_MAILCHIMP_RESUBSCRIBE_ROUTING_KEY')
-        );
         $mbpUserStatus = new MBP_UserStatus($credentials, $config);
         $status = $mbpUserStatus->resubscribeEmail($errorDetails, $composedBatch);
       }
       else {
-        $config = array(
-          'routingKey' => getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY')
-        );
+        $config['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
         $mbpUserStatus = new MBP_UserStatus($credentials, $config);
         $status = $mbpUserStatus->reportEmailErrors($errorDetails);
       }
@@ -376,7 +371,6 @@ class MBC_UserRegistration
     }
 
     return $status;
-
   }
 
 }

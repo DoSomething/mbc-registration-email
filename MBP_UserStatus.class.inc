@@ -42,7 +42,6 @@ class MBP_UserStatus
 
     // Setup RabbitMQ connection
     $this->MessageBroker = new MessageBroker($credentials, $config);
-
   }
 
   /**
@@ -60,7 +59,6 @@ class MBP_UserStatus
     $status = $this->MessageBroker->publishMessage($payload);
 
     return $status;
-
   }
 
   /**
@@ -83,11 +81,27 @@ class MBP_UserStatus
 
     // Lookup the group assignment details from $composedBatch by the email
     // address in $errorDetails
+    foreach ($composedBatch as $composedItemCount => $composedItem) {
+      if ($composedItem['email']['email'] == $errorDetails['email']['email']) {
+        $resubscribeDetails = $composedItem;
+        break;
+      }
+    }
 
-    // Create queue entry - mailchimpCampaignSignupQueue
+    // Submit subscription to Mailchimp
+    $MailChimp = new \Drewm\MailChimp($this->credentials['mailchimp_apikey']);
 
-    $payload = serialize($resubscribeDetails);
-    $status = $this->MessageBroker->publishMessage($payload);
+    $results = $MailChimp->call("lists/subscribe", array(
+      'id' => $this->config['mailchimp_list_id'],
+      'email' => array(
+        'email' => $composedItem['email']['email']
+        ),
+      'merge_vars' => $composedItem['merge_vars'],
+      'double_optin' => FALSE,
+      'update_existing' => TRUE,
+      'replace_interests' => FALSE,
+      'send_welcome' => FALSE,
+    ));
 
   }
 

@@ -59,16 +59,13 @@ $config = array(
   'mailchimp_list_id' => getenv("MAILCHIMP_LIST_ID"),
 );
 
-$bla = FALSE;
-if ($bla) {
-  $bla = TRUE;
-}
+$status = '';
 
 // Kick off
 $mbcUserRegistration = new MBC_UserRegistration($credentials, $config);
 
 // Process new registrations
-// $status = $mbcUserRegistration->consumeNewRegistrationsQueue();
+$status = $mbcUserRegistration->consumeNewRegistrationsQueue();
 
 // Process campaign signups
 $status .= $mbcUserRegistration->consumeMailchimpCampaignSignupQueue();
