@@ -33,6 +33,13 @@ class MBC_UserRegistration
    * @var array
    */
   private $credentials;
+  
+  /**
+   * Setting from external services - Mailchimp.
+   *
+   * @var array
+   */
+  private $settings;
 
   /**
    * The number of queue entries to process in each session
