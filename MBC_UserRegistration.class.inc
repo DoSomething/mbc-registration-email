@@ -284,17 +284,23 @@ class MBC_UserRegistration
     ));
 
     $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . "\n";
-    if ($results['error_count'] > 0) {
-      $this->updateUserMailchimpError($results['errors']);
+    if ($results != 0) {
+      if ($results['error_count'] > 0) {
+        $this->updateUserMailchimpError($results['errors'], $composedBatch);
+      }
+      else {
+        $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . "\n";
+      }
+      $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
+
+      // Acknowledge submissions that been processed
+      foreach($mbDeliveryTags as $tagEmail => $mbDeliveryTag) {
+        $this->channel->basic_ack($mbDeliveryTag);
+      }
     }
     else {
-      $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . "\n";
-    }
-    $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
-
-    // Acknowledge submissions that been processed
-    foreach($mbDeliveryTags as $tagEmail => $mbDeliveryTag) {
-      $this->channel->basic_ack($mbDeliveryTag);
+      $this->channel->basic_recover(TRUE);
+      $status .= 'ERROR: No results returned from Mailchimp lists/batch-subscribe submisison.';
     }
 
     return $status;
@@ -308,49 +314,36 @@ class MBC_UserRegistration
    *
    * @param array $errors
    *   A list of RabbitMQ delivery tags being processed in batch.
+   *
+   * @param array $composedBatch
+   *  List or email address and their Mailchimp interest group assignments that
+   *  were submitted as a batch.
    */
-  private function updateUserMailchimpError($errors) {
+  private function updateUserMailchimpError($errors, $composedBatch) {
 
     // Config value
-    $credentials = array(
-      'host' =>  getenv("RABBITMQ_HOST"),
-      'port' => getenv("RABBITMQ_PORT"),
-      'username' => getenv("RABBITMQ_USERNAME"),
-      'password' => getenv("RABBITMQ_PASSWORD"),
-      'vhost' => getenv("RABBITMQ_VHOST"),
-    );
+    $this->credentials['mailchimp_apikey'] = getenv("MAILCHIMP_APIKEY");
 
-    $config = array(
-      'routingKey' => getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY'),
-      'exchange' => array(
-        'name' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE"),
-        'type' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_TYPE"),
-        'passive' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_PASSIVE"),
-        'durable' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_DURABLE"),
-        'auto_delete' => getenv("MB_USER_MAILCHIMP_STATUS_EXCHANGE_AUTO_DELETE"),
-      ),
-      'queue' => array(
-        'userMailchimpStatus' => array(
-          'name' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE"),
-          'passive' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_PASSIVE"),
-          'durable' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_DURABLE"),
-          'exclusive' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_EXCLUSIVE"),
-          'auto_delete' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_AUTO_DELETE"),
-          'bindingKey' => getenv('MB_USER_MAILCHIMP_STATUS_QUEUE_BINDING_KEY'),
-        ),
-      ),
-    );
-
-    // Kick off
-    $mbpUserStatus = new MBP_UserStatus($credentials, $config);
+    $this->config['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
+    $this->config['mailchimp_list_id'] = getenv("MAILCHIMP_LIST_ID");
 
     // Add extries for each error encountered to the directUserStatusExchange
     foreach ($errors as $errorDetails){
-      $status = $mbpUserStatus->reportEmailErrors($errorDetails);
+
+      // Resubscribe if email address is reported as unsubscribed - the
+      // transaction / the user signing up for a campaign is confirmation that
+      // they want to resubscribe.
+      if ($errorDetails['code'] == 212) {
+        $status = MBP_UserStatus::resubscribeEmail($errorDetails, $composedBatch);
+      }
+      else {
+        $mbpUserStatus = new MBP_UserStatus($this->credentials, $this->config);
+        $status = $mbpUserStatus->reportEmailErrors($errorDetails);
+      }
+
     }
 
     return $status;
-
   }
 
 }

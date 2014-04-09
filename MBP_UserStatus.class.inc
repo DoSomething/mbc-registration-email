@@ -42,7 +42,6 @@ class MBP_UserStatus
 
     // Setup RabbitMQ connection
     $this->MessageBroker = new MessageBroker($credentials, $config);
-
   }
 
   /**
@@ -60,6 +59,49 @@ class MBP_UserStatus
     $status = $this->MessageBroker->publishMessage($payload);
 
     return $status;
+  }
+
+  /**
+   * Resubscribe email address with interest group assignment - submit queue
+   * entry to mailchimpCampaignSignupQueue
+   *
+   * @param array $errorDetails
+   *   The error details reported when the email address was submitted as a part
+   *   of a batch submission.
+   *
+   * @param array $composedBatch
+   *   The details of the batch data sent to Mailchimp. The interest group
+   *   details will be extractacted for the /lists/subscribe submission to
+   *   Mailchimp
+   *
+   * @return string $status
+   *   The results of the submission to the UserAPI
+   */
+  public static function resubscribeEmail($errorDetails, $composedBatch) {
+
+    // Lookup the group assignment details from $composedBatch by the email
+    // address in $errorDetails
+    foreach ($composedBatch as $composedItemCount => $composedItem) {
+      if ($composedItem['email']['email'] == $errorDetails['email']['email']) {
+        $resubscribeDetails = $composedItem;
+        break;
+      }
+    }
+
+    // Submit subscription to Mailchimp
+    $MailChimp = new \Drewm\MailChimp($this->credentials['mailchimp_apikey']);
+
+    $results = $MailChimp->call("lists/subscribe", array(
+      'id' => $this->config['mailchimp_list_id'],
+      'email' => array(
+        'email' => $composedItem['email']['email']
+        ),
+      'merge_vars' => $composedItem['merge_vars'],
+      'double_optin' => FALSE,
+      'update_existing' => TRUE,
+      'replace_interests' => FALSE,
+      'send_welcome' => FALSE,
+    ));
 
   }
 

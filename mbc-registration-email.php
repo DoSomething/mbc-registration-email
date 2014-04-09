@@ -59,6 +59,8 @@ $config = array(
   'mailchimp_list_id' => getenv("MAILCHIMP_LIST_ID"),
 );
 
+$status = '';
+
 // Kick off
 $mbcUserRegistration = new MBC_UserRegistration($credentials, $config);
 
