@@ -47,11 +47,15 @@ class MBC_UserRegistration
    *
    * @param array $config
    *   Configuration settings from mb-config.inc
+   *
+   * @param array $settings
+   *   Settings from external services - Mailchimp
    */
-  public function __construct($credentials, $config) {
+  public function __construct($credentials, $config, $settings) {
 
     $this->config = $config;
     $this->credentials = $credentials;
+    $this->settings = $settings;
 
     // Setup RabbitMQ connection
     $this->MessageBroker = new MessageBroker($credentials, $config);
@@ -260,7 +264,7 @@ class MBC_UserRegistration
    */
   private function submitToMailChimp($composedBatch = array(), $mbDeliveryTags = array()) {
 
-    $MailChimp = new \Drewm\MailChimp($this->credentials['mailchimp_apikey']);
+    $MailChimp = new \Drewm\MailChimp($this->settings['mailchimp_apikey']);
 
     // Debugging
     // $results1 = $MailChimp->call("lists/list", array());
@@ -276,7 +280,7 @@ class MBC_UserRegistration
     $results['update_count'] = 0;
 
     $results = $MailChimp->call("lists/batch-subscribe", array(
-      'id' => $this->config['mailchimp_list_id'],
+      'id' => $this->settings['mailchimp_list_id'],
       'batch' => $composedBatch,
       'double_optin' => FALSE,
       'update_existing' => TRUE,
@@ -321,11 +325,8 @@ class MBC_UserRegistration
    */
   private function updateUserMailchimpError($errors, $composedBatch) {
 
-    // Config value
-    $this->credentials['mailchimp_apikey'] = getenv("MAILCHIMP_APIKEY");
-
+    // Change routingKey config value
     $this->config['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
-    $this->config['mailchimp_list_id'] = getenv("MAILCHIMP_LIST_ID");
 
     // Add extries for each error encountered to the directUserStatusExchange
     foreach ($errors as $errorDetails){
@@ -334,7 +335,7 @@ class MBC_UserRegistration
       // transaction / the user signing up for a campaign is confirmation that
       // they want to resubscribe.
       if ($errorDetails['code'] == 212) {
-        $status = MBP_UserStatus::resubscribeEmail($errorDetails, $composedBatch);
+        $status = MBP_UserStatus::resubscribeEmail($errorDetails, $composedBatch, $this->settings);
       }
       else {
         $mbpUserStatus = new MBP_UserStatus($this->credentials, $this->config);
