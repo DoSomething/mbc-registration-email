@@ -27,7 +27,6 @@ $credentials = array(
   'password' => getenv("RABBITMQ_PASSWORD"),
   'vhost' => getenv("RABBITMQ_VHOST"),
 );
-$credentials['mailchimp_apikey'] = getenv("MAILCHIMP_APIKEY");
 
 $config = array(
   'exchange' => array(
@@ -56,13 +55,16 @@ $config = array(
     ),
 
   ),
+);
+$settings = array(
+  'mailchimp_apikey' => getenv("MAILCHIMP_APIKEY"),
   'mailchimp_list_id' => getenv("MAILCHIMP_LIST_ID"),
 );
 
 $status = '';
 
 // Kick off
-$mbcUserRegistration = new MBC_UserRegistration($credentials, $config);
+$mbcUserRegistration = new MBC_UserRegistration($credentials, $config, $settings);
 
 // Process new registrations
 $status = $mbcUserRegistration->consumeNewRegistrationsQueue();

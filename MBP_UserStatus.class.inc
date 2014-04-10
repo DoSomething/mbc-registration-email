@@ -74,10 +74,13 @@ class MBP_UserStatus
    *   details will be extractacted for the /lists/subscribe submission to
    *   Mailchimp
    *
+   * @param array $settings
+   *   Settings from external services - Mailchimp
+   *
    * @return string $status
    *   The results of the submission to the UserAPI
    */
-  public static function resubscribeEmail($errorDetails, $composedBatch) {
+  public static function resubscribeEmail($errorDetails, $composedBatch, $settings) {
 
     // Lookup the group assignment details from $composedBatch by the email
     // address in $errorDetails
@@ -89,10 +92,10 @@ class MBP_UserStatus
     }
 
     // Submit subscription to Mailchimp
-    $MailChimp = new \Drewm\MailChimp($this->credentials['mailchimp_apikey']);
+    $MailChimp = new \Drewm\MailChimp($settings['mailchimp_apikey']);
 
     $results = $MailChimp->call("lists/subscribe", array(
-      'id' => $this->config['mailchimp_list_id'],
+      'id' => $settings['mailchimp_list_id'],
       'email' => array(
         'email' => $composedItem['email']['email']
         ),
