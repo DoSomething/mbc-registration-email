@@ -44,7 +44,7 @@ class MBC_UserRegistration
   /**
    * The number of queue entries to process in each session
    */
-  const BATCH_SIZE = 100;
+  const BATCH_SIZE = 400;
 
   /**
    * Constructor for MBC_UserRegistration
