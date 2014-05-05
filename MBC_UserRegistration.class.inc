@@ -66,6 +66,9 @@ class MBC_UserRegistration
 
     // Setup RabbitMQ connection
     $this->MessageBroker = new MessageBroker($credentials, $config);
+
+    // @todo: Remove all of the code below, messagebroker-phplib does this
+    // automatically based on the $config values
     $connection = $this->MessageBroker->connection;
     $this->channel = $connection->channel();
 
@@ -119,6 +122,7 @@ class MBC_UserRegistration
 
     list($composedSubscriberList, $mbDeliveryTags) = $this->composeSubscriberSubmission($newSubscribers);
     if (count($composedSubscriberList) > 0) {
+      // @todo: Add StatHat call to report the number of Mailchimp submissions
       $results = $this->submitToMailChimp($composedSubscriberList, $mbDeliveryTags);
     }
     else {

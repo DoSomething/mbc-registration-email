@@ -19,6 +19,8 @@ require __DIR__ . '/mb-config.inc';
 require __DIR__ . '/MBC_UserRegistration.class.inc';
 require __DIR__ . '/MBP_UserStatus.class.inc';
 
+use DoSomething\MBStatTracker\StatHat;
+
 // Settings
 $credentials = array(
   'host' =>  getenv("RABBITMQ_HOST"),
@@ -59,6 +61,7 @@ $config = array(
 $settings = array(
   'mailchimp_apikey' => getenv("MAILCHIMP_APIKEY"),
   'mailchimp_list_id' => getenv("MAILCHIMP_LIST_ID"),
+  'stathat_ez_key' => getenv("STATHAT_EZKEY"),
 );
 
 $status = '';

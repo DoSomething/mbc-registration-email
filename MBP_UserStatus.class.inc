@@ -26,6 +26,13 @@ class MBP_UserStatus
    */
   private $credentials;
 
+  /**
+   * StatHat for logging.
+   *
+   * @var object
+   */
+  private $statHat;
+
  /**
    * Constructor for MBP_UserStatus
    *
@@ -40,8 +47,10 @@ class MBP_UserStatus
     $this->config = $config;
     $this->credentials = $credentials;
 
-    // Setup RabbitMQ connection
     $this->MessageBroker = new MessageBroker($credentials, $config);
+    $this->statHat = new StatHat(STATHAT_EZKEY, 'MBP_UserStatus->reportEmailErrors:');
+    // @todo: Create enviroment variable in mc-config.inc to flag production
+    $this->statHat->setIsProduction(TRUE);
   }
 
   /**
@@ -57,6 +66,7 @@ class MBP_UserStatus
 
     $payload = serialize($errorDetails);
     $status = $this->MessageBroker->publishMessage($payload);
+    $this->statHat->reportCount(1);
 
     return $status;
   }
@@ -92,9 +102,9 @@ class MBP_UserStatus
     }
 
     // Submit subscription to Mailchimp
-    $MailChimp = new \Drewm\MailChimp($settings['mailchimp_apikey']);
+    $mc = new \Drewm\MailChimp($settings['mailchimp_apikey']);
 
-    $results = $MailChimp->call("lists/subscribe", array(
+    $results = $mc->call("lists/subscribe", array(
       'id' => $settings['mailchimp_list_id'],
       'email' => array(
         'email' => $composedItem['email']['email']
@@ -105,6 +115,15 @@ class MBP_UserStatus
       'replace_interests' => FALSE,
       'send_welcome' => FALSE,
     ));
+
+    if (isset($results['error'])) {
+      $this->statHat_resubscribeEmail_error = new StatHat(STATHAT_EZKEY, 'MBP_UserStatus->resubscribeEmail Error:');
+      $this->statHat_resubscribeEmail_error->reportCount(1);
+    }
+    else {
+      $this->statHat->addStatName('MBP_UserStatus->resubscribeEmail:');
+      $this->statHat->reportCount(1);
+    }
 
   }
 
