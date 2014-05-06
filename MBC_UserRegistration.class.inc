@@ -11,7 +11,7 @@ class MBC_UserRegistration
    *
    * @var object
    */
-  private $MessageBroker;
+  private $messageBroker;
 
   /**
    * Details of the channel connection in use by RabbitMQ.
@@ -65,7 +65,7 @@ class MBC_UserRegistration
     $this->settings = $settings;
 
     // Setup RabbitMQ connection
-    $this->MessageBroker = new MessageBroker($credentials, $config);
+    $this->messageBroker = new MessageBroker($credentials, $config);
 
     // @todo: Remove all of the code below, messagebroker-phplib does this
     // automatically based on the $config values
@@ -76,13 +76,15 @@ class MBC_UserRegistration
     $this->channel = $this->MessageBroker->setupExchange($config['exchange']['name'], $config['exchange']['type'], $this->channel);
 
     // Queues - userRegistrationQueue and mailchimpCampaignSignupQueue
-    list($this->channel, ) = $this->MessageBroker->setupQueue($config['queue']['registrations']['name'], $this->channel);
-    list($this->channel, ) = $this->MessageBroker->setupQueue($config['queue']['campaign_signups']['name'], $this->channel);
+    list($this->channel, ) = $this->messageBroker->setupQueue($config['queue']['registrations']['name'], $this->channel);
+    list($this->channel, ) = $this->messageBroker->setupQueue($config['queue']['campaign_signups']['name'], $this->channel);
 
     // Queue binding
     $this->channel->queue_bind($config['queue']['registrations']['name'], $config['exchange']['name'], $config['queue']['registrations']['bindingKey']);
     $this->channel->queue_bind($config['queue']['campaign_signups']['name'], $config['exchange']['name'], $config['queue']['campaign_signups']['bindingKey']);
 
+    $this->statHat = new StatHat($settings['stathat_ez_key'], 'mbc_reistration_email:');
+    $this->statHat->setIsProduction(TRUE);
   }
 
   /**
@@ -95,7 +97,7 @@ class MBC_UserRegistration
   public function consumeNewRegistrationsQueue() {
 
     // Get the status details of the queue by requesting a declare
-    list($this->channel, $status) = $this->MessageBroker->setupQueue($this->config['queue']['registrations']['name'], $this->channel);
+    list($this->channel, $status) = $this->messageBroker->setupQueue($this->config['queue']['registrations']['name'], $this->channel);
 
     $messageCount = $status[1];
     // @todo: Respond to unacknowledged messages
@@ -124,6 +126,8 @@ class MBC_UserRegistration
     if (count($composedSubscriberList) > 0) {
       // @todo: Add StatHat call to report the number of Mailchimp submissions
       $results = $this->submitToMailChimp($composedSubscriberList, $mbDeliveryTags);
+      $this->statHat->addStatName('consumeNewRegistrationsQueue');
+      $this->statHat->reportCount($processedCount);
     }
     else {
       $results = 'No new accounts to submit to MailChimp.';
@@ -181,6 +185,8 @@ class MBC_UserRegistration
     list($composedSignupList, $mbDeliveryTags) = $this->composeSignupSubmission($campaignSignups);
     if (count($composedSignupList)) {
       $results = $this->submitToMailChimp($composedSignupList, $mbDeliveryTags);
+      $this->statHat->addStatName('consumeMailchimpCampaignSignupQueue');
+      $this->statHat->reportCount($messagesProcessed);
     }
     else {
       $results = 'No new campaign signups accounts to submit to MailChimp.';
@@ -336,7 +342,7 @@ class MBC_UserRegistration
    */
   private function updateUserMailchimpError($errors, $composedBatch) {
 
-    // Change routingKey config value
+    // Change routingKey config to point to userMailchimpStatusQueue
     $this->config['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
 
     // Add extries for each error encountered to the directUserStatusExchange
@@ -346,16 +352,71 @@ class MBC_UserRegistration
       // transaction / the user signing up for a campaign is confirmation that
       // they want to resubscribe.
       if ($errorDetails['code'] == 212) {
-        $status = MBP_UserStatus::resubscribeEmail($errorDetails, $composedBatch, $this->settings);
+        $status = $this->resubscribeEmail($errorDetails, $composedBatch);
       }
       else {
-        $mbpUserStatus = new MBP_UserStatus($this->credentials, $this->config, $this->settings);
-        $status = $mbpUserStatus->reportEmailErrors($errorDetails);
+        $payload = serialize($errorDetails);
+        $status = $this->messageBroker->publishMessage($payload);
+        $this->statHat->addStatName('updateUserMailchimpError');
+        $this->statHat->reportCount(1);
       }
 
     }
 
     return $status;
+  }
+
+ /**
+   * Resubscribe email address with interest group assignment - submit queue
+   * entry to mailchimpCampaignSignupQueue
+   *
+   * @param array $errorDetails
+   *   The error details reported when the email address was submitted as a part
+   *   of a batch submission.
+   *
+   * @param array $composedBatch
+   *   The details of the batch data sent to Mailchimp. The interest group
+   *   details will be extractacted for the /lists/subscribe submission to
+   *   Mailchimp
+   *
+   * @return string $status
+   *   The results of the submission to the UserAPI
+   */
+  private function resubscribeEmail($errorDetails, $composedBatch) {
+
+    // Lookup the group assignment details from $composedBatch by the email
+    // address in $errorDetails
+    foreach ($composedBatch as $composedItemCount => $composedItem) {
+      if ($composedItem['email']['email'] == $errorDetails['email']['email']) {
+        $resubscribeDetails = $composedItem;
+        break;
+      }
+    }
+
+    // Submit subscription to Mailchimp
+    $mc = new \Drewm\MailChimp($settings['mailchimp_apikey']);
+
+    $results = $mc->call("lists/subscribe", array(
+      'id' => $settings['mailchimp_list_id'],
+      'email' => array(
+        'email' => $composedItem['email']['email']
+        ),
+      'merge_vars' => $composedItem['merge_vars'],
+      'double_optin' => FALSE,
+      'update_existing' => TRUE,
+      'replace_interests' => FALSE,
+      'send_welcome' => FALSE,
+    ));
+
+    if (isset($results['error'])) {
+      $this->statHat->addStatName('resubscribeEmail Error');
+      $this->statHat->reportCount(1);
+    }
+    else {
+      $this->statHat->addStatName('resubscribeEmail');
+      $this->statHat->reportCount(1);
+    }
+
   }
 
 }
