@@ -27,11 +27,11 @@ class MBP_UserStatus
   private $credentials;
 
   /**
-   * StatHat for logging.
+   * Setting from external services - Mailchimp.
    *
-   * @var object
+   * @var array
    */
-  private $statHat;
+  private $settings;
 
  /**
    * Constructor for MBP_UserStatus
@@ -42,15 +42,13 @@ class MBP_UserStatus
    * @param array $config
    *   Configuration settings from mb-config.inc
    */
-  public function __construct($credentials, $config) {
+  public function __construct($credentials, $config, $settings) {
 
-    $this->config = $config;
     $this->credentials = $credentials;
+    $this->config = $config;
+    $this->settings = $settings;
 
     $this->MessageBroker = new MessageBroker($credentials, $config);
-    $this->statHat = new StatHat(STATHAT_EZKEY, 'MBP_UserStatus->reportEmailErrors:');
-    // @todo: Create enviroment variable in mc-config.inc to flag production
-    $this->statHat->setIsProduction(TRUE);
   }
 
   /**
@@ -66,7 +64,7 @@ class MBP_UserStatus
 
     $payload = serialize($errorDetails);
     $status = $this->MessageBroker->publishMessage($payload);
-    $this->statHat->reportCount(1);
+    $statHat = new StatHat($this->$settings['stathat_ez_key'], 'MBP_UserStatus->reportEmailErrors');
 
     return $status;
   }
@@ -117,12 +115,10 @@ class MBP_UserStatus
     ));
 
     if (isset($results['error'])) {
-      $this->statHat_resubscribeEmail_error = new StatHat(STATHAT_EZKEY, 'MBP_UserStatus->resubscribeEmail Error:');
-      $this->statHat_resubscribeEmail_error->reportCount(1);
+      $statHat = new StatHat($this->$settings['stathat_ez_key'], 'MBP_UserStatus->resubscribeEmail Error');
     }
     else {
-      $this->statHat->addStatName('MBP_UserStatus->resubscribeEmail:');
-      $this->statHat->reportCount(1);
+      $statHat = new StatHat($this->$settings['stathat_ez_key'], 'MBP_UserStatus->resubscribeEmail');
     }
 
   }

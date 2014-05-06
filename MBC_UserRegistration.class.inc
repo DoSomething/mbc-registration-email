@@ -349,7 +349,7 @@ class MBC_UserRegistration
         $status = MBP_UserStatus::resubscribeEmail($errorDetails, $composedBatch, $this->settings);
       }
       else {
-        $mbpUserStatus = new MBP_UserStatus($this->credentials, $this->config);
+        $mbpUserStatus = new MBP_UserStatus($this->credentials, $this->config, $this->settings);
         $status = $mbpUserStatus->reportEmailErrors($errorDetails);
       }
 
