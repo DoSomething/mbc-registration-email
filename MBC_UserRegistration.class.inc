@@ -1,4 +1,7 @@
 <?php
+
+use DoSomething\MBStatTracker\StatHat;
+
 /**
  * MBC_UserRegistration class - functionality related to the Message Broker
  * consumer mbc-registration-email.
@@ -153,7 +156,7 @@ class MBC_UserRegistration
   public function consumeMailchimpCampaignSignupQueue() {
 
     // Get the status details of the queue by requesting a declare
-    list($this->channel, $status) = $this->MessageBroker->setupQueue($this->config['queue']['campaign_signups']['name'], $this->channel);
+    list($this->channel, $status) = $this->messageBroker->setupQueue($this->config['queue']['campaign_signups']['name'], $this->channel);
 
     $messageCount = $status[1];
     // @todo: Respond to unacknowledged messages
