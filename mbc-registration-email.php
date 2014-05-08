@@ -17,7 +17,6 @@ require __DIR__ . '/mb-secure-config.inc';
 require __DIR__ . '/mb-config.inc';
 
 require __DIR__ . '/MBC_UserRegistration.class.inc';
-require __DIR__ . '/MBP_UserStatus.class.inc';
 
 use DoSomething\MBStatTracker\StatHat;
 

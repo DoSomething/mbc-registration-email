@@ -42,6 +42,13 @@ class MBC_UserRegistration
   private $settings;
 
   /**
+   * Setting from external services - Mailchimp.
+   *
+   * @var array
+   */
+  private $statHat;
+
+  /**
    * The number of queue entries to process in each session
    */
   const BATCH_SIZE = 100;
@@ -124,7 +131,6 @@ class MBC_UserRegistration
 
     list($composedSubscriberList, $mbDeliveryTags) = $this->composeSubscriberSubmission($newSubscribers);
     if (count($composedSubscriberList) > 0) {
-      // @todo: Add StatHat call to report the number of Mailchimp submissions
       $results = $this->submitToMailChimp($composedSubscriberList, $mbDeliveryTags);
       $this->statHat->addStatName('consumeNewRegistrationsQueue');
       $this->statHat->reportCount($processedCount);
