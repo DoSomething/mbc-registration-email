@@ -76,11 +76,11 @@ class MBC_UserRegistration
 
     // @todo: Remove all of the code below, messagebroker-phplib does this
     // automatically based on the $config values
-    $connection = $this->MessageBroker->connection;
+    $connection = $this->messageBroker->connection;
     $this->channel = $connection->channel();
 
     // Exchange
-    $this->channel = $this->MessageBroker->setupExchange($config['exchange']['name'], $config['exchange']['type'], $this->channel);
+    $this->channel = $this->messageBroker->setupExchange($config['exchange']['name'], $config['exchange']['type'], $this->channel);
 
     // Queues - userRegistrationQueue and mailchimpCampaignSignupQueue
     list($this->channel, ) = $this->messageBroker->setupQueue($config['queue']['registrations']['name'], $this->channel);
