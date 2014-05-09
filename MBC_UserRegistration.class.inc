@@ -77,6 +77,9 @@ class MBC_UserRegistration
     // Setup RabbitMQ connection
     $this->messageBroker = new MessageBroker($credentials, $config);
 
+    $connection = $this->messageBroker->connection;
+    $this->channel = $connection->channel();
+
     $this->statHat = new StatHat($settings['stathat_ez_key'], 'mbc-reistration-email:');
     $this->statHat->setIsProduction(TRUE);
   }
