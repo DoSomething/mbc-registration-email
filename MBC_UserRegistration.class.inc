@@ -81,7 +81,7 @@ class MBC_UserRegistration
     $this->channel = $connection->channel();
 
     // Stathat
-    $this->statHat = new StatHat($settings['stathat_ez_key'], 'mbc-reistration-email:');
+    $this->statHat = new StatHat($settings['stathat_ez_key'], 'mbc-registration-email:');
     $this->statHat->setIsProduction(TRUE);
   }
 
