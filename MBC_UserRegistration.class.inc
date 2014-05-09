@@ -77,23 +77,11 @@ class MBC_UserRegistration
     // Setup RabbitMQ connection
     $this->messageBroker = new MessageBroker($credentials, $config);
 
-    // @todo: Remove all of the code below, messagebroker-phplib does this
-    // automatically based on the $config values
     $connection = $this->messageBroker->connection;
     $this->channel = $connection->channel();
 
-    // Exchange
-    $this->channel = $this->messageBroker->setupExchange($config['exchange']['name'], $config['exchange']['type'], $this->channel);
-
-    // Queues - userRegistrationQueue and mailchimpCampaignSignupQueue
-    list($this->channel, ) = $this->messageBroker->setupQueue($config['queue']['registrations']['name'], $this->channel);
-    list($this->channel, ) = $this->messageBroker->setupQueue($config['queue']['campaign_signups']['name'], $this->channel);
-
-    // Queue binding
-    $this->channel->queue_bind($config['queue']['registrations']['name'], $config['exchange']['name'], $config['queue']['registrations']['bindingKey']);
-    $this->channel->queue_bind($config['queue']['campaign_signups']['name'], $config['exchange']['name'], $config['queue']['campaign_signups']['bindingKey']);
-
-    $this->statHat = new StatHat($settings['stathat_ez_key'], 'mbc_reistration_email:');
+    // Stathat
+    $this->statHat = new StatHat($settings['stathat_ez_key'], 'mbc-registration-email:');
     $this->statHat->setIsProduction(TRUE);
   }
 
