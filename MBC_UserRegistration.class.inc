@@ -355,7 +355,7 @@ class MBC_UserRegistration
     $this->config['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
 
     // Add extries for each error encountered to the directUserStatusExchange
-    $this->stathat->clearAddedStatNames();
+    $this->statHat->clearAddedStatNames();
     $this->statHat->addStatName('updateUserMailchimpError');
     foreach ($errors as $errorDetails){
 
@@ -418,7 +418,7 @@ class MBC_UserRegistration
       'send_welcome' => FALSE,
     ));
 
-    $this->stathat->clearAddedStatNames();
+    $this->statHat->clearAddedStatNames();
     if (isset($results['error'])) {
       $this->statHat->addStatName('updateUserMailchimpError-resubscribeEmail Error');
       $this->statHat->reportCount(1);
