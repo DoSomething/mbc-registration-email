@@ -93,6 +93,9 @@ class MBC_UserRegistration
    *   An array of the status of the job
    */
   public function consumeNewRegistrationsQueue() {
+    
+    $this->statHat->clearAddedStatNames();
+    $this->statHat->addStatName('consumeNewRegistrationsQueue');
 
     // Get the status details of the queue by requesting a declare
     list($this->channel, $status) = $this->messageBroker->setupQueue($this->config['queue']['registrations']['name'], $this->channel);
@@ -123,7 +126,6 @@ class MBC_UserRegistration
     list($composedSubscriberList, $mbDeliveryTags) = $this->composeSubscriberSubmission($newSubscribers);
     if (count($composedSubscriberList) > 0) {
       $results = $this->submitToMailChimp($composedSubscriberList, $mbDeliveryTags);
-      $this->statHat->addStatName('consumeNewRegistrationsQueue');
       $this->statHat->reportCount($processedCount);
     }
     else {
@@ -142,6 +144,9 @@ class MBC_UserRegistration
    *   An array of the status of the job
    */
   public function consumeMailchimpCampaignSignupQueue() {
+    
+    $this->statHat->clearAddedStatNames();
+    $this->statHat->addStatName('consumeMailchimpCampaignSignupQueue');
 
     // Get the status details of the queue by requesting a declare
     list($this->channel, $status) = $this->messageBroker->setupQueue($this->config['queue']['campaign_signups']['name'], $this->channel);
@@ -182,7 +187,6 @@ class MBC_UserRegistration
     list($composedSignupList, $mbDeliveryTags) = $this->composeSignupSubmission($campaignSignups);
     if (count($composedSignupList)) {
       $results = $this->submitToMailChimp($composedSignupList, $mbDeliveryTags);
-      $this->statHat->addStatName('consumeMailchimpCampaignSignupQueue');
       $this->statHat->reportCount($messagesProcessed);
     }
     else {
@@ -310,6 +314,14 @@ class MBC_UserRegistration
         $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . "\n";
       }
       $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
+      
+      $this->statHat->clearAddedStatNames();
+      $this->statHat->addStatName('submitToMailChimp-batch-subscribe add_count');
+      $this->statHat->reportCount($results['add_count']);
+
+      $this->statHat->clearAddedStatNames();
+      $this->statHat->addStatName('submitToMailChimp-batch-subscribe update_count');
+      $this->statHat->reportCount($results['update_count']);
 
       // Acknowledge submissions that been processed
       foreach($mbDeliveryTags as $tagEmail => $mbDeliveryTag) {
@@ -343,6 +355,8 @@ class MBC_UserRegistration
     $this->config['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
 
     // Add extries for each error encountered to the directUserStatusExchange
+    $this->statHat->clearAddedStatNames();
+    $this->statHat->addStatName('updateUserMailchimpError');
     foreach ($errors as $errorDetails){
 
       // Resubscribe if email address is reported as unsubscribed - the
@@ -354,7 +368,6 @@ class MBC_UserRegistration
       else {
         $payload = serialize($errorDetails);
         $status = $this->messageBroker->publishMessage($payload);
-        $this->statHat->addStatName('updateUserMailchimpError');
         $this->statHat->reportCount(1);
       }
 
@@ -405,12 +418,13 @@ class MBC_UserRegistration
       'send_welcome' => FALSE,
     ));
 
+    $this->statHat->clearAddedStatNames();
     if (isset($results['error'])) {
-      $this->statHat->addStatName('resubscribeEmail Error');
+      $this->statHat->addStatName('updateUserMailchimpError-resubscribeEmail Error');
       $this->statHat->reportCount(1);
     }
     else {
-      $this->statHat->addStatName('resubscribeEmail');
+      $this->statHat->addStatName('updateUserMailchimpError-resubscribeEmail');
       $this->statHat->reportCount(1);
     }
 
