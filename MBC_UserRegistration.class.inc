@@ -93,9 +93,6 @@ class MBC_UserRegistration
    *   An array of the status of the job
    */
   public function consumeNewRegistrationsQueue() {
-    
-    $this->statHat->clearAddedStatNames();
-    $this->statHat->addStatName('consumeNewRegistrationsQueue');
 
     // Get the status details of the queue by requesting a declare
     list($this->channel, $status) = $this->messageBroker->setupQueue($this->config['queue']['registrations']['name'], $this->channel);
@@ -126,6 +123,8 @@ class MBC_UserRegistration
     list($composedSubscriberList, $mbDeliveryTags) = $this->composeSubscriberSubmission($newSubscribers);
     if (count($composedSubscriberList) > 0) {
       $results = $this->submitToMailChimp($composedSubscriberList, $mbDeliveryTags);
+      $this->statHat->clearAddedStatNames();
+      $this->statHat->addStatName('consumeNewRegistrationsQueue');
       $this->statHat->reportCount($processedCount);
     }
     else {
@@ -144,9 +143,6 @@ class MBC_UserRegistration
    *   An array of the status of the job
    */
   public function consumeMailchimpCampaignSignupQueue() {
-    
-    $this->statHat->clearAddedStatNames();
-    $this->statHat->addStatName('consumeMailchimpCampaignSignupQueue');
 
     // Get the status details of the queue by requesting a declare
     list($this->channel, $status) = $this->messageBroker->setupQueue($this->config['queue']['campaign_signups']['name'], $this->channel);
@@ -187,6 +183,8 @@ class MBC_UserRegistration
     list($composedSignupList, $mbDeliveryTags) = $this->composeSignupSubmission($campaignSignups);
     if (count($composedSignupList)) {
       $results = $this->submitToMailChimp($composedSignupList, $mbDeliveryTags);
+      $this->statHat->clearAddedStatNames();
+      $this->statHat->addStatName('consumeMailchimpCampaignSignupQueue');
       $this->statHat->reportCount($messagesProcessed);
     }
     else {
@@ -421,12 +419,11 @@ class MBC_UserRegistration
     $this->statHat->clearAddedStatNames();
     if (isset($results['error'])) {
       $this->statHat->addStatName('updateUserMailchimpError-resubscribeEmail Error');
-      $this->statHat->reportCount(1);
     }
     else {
       $this->statHat->addStatName('updateUserMailchimpError-resubscribeEmail');
-      $this->statHat->reportCount(1);
     }
+    $this->statHat->reportCount(1);
 
   }
 
