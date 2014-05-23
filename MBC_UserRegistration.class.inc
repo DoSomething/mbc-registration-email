@@ -81,7 +81,7 @@ class MBC_UserRegistration
     $this->channel = $connection->channel();
 
     // Stathat
-    $this->statHat = new StatHat($settings['stathat_ez_key'], 'mbc-registration-email:');
+    $this->statHat = new StatHat($this->settings['stathat_ez_key'], 'mbc-registration-email:');
     $this->statHat->setIsProduction(TRUE);
   }
 
@@ -404,10 +404,10 @@ class MBC_UserRegistration
     }
 
     // Submit subscription to Mailchimp
-    $mc = new \Drewm\MailChimp($settings['mailchimp_apikey']);
+    $mc = new \Drewm\MailChimp($this->settings['mailchimp_apikey']);
 
     $results = $mc->call("lists/subscribe", array(
-      'id' => $settings['mailchimp_list_id'],
+      'id' => $this->settings['mailchimp_list_id'],
       'email' => array(
         'email' => $composedItem['email']['email']
         ),
