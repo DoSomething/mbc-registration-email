@@ -54,7 +54,14 @@ $config = array(
       'auto_delete' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_AUTO_DELETE"),
       'bindingKey' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN"),
     ),
-
+    'mailchimp_status' => array(
+      'name' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE"),
+      'passive' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_PASSIVE"),
+      'durable' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_DURABLE"),
+      'exclusive' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_EXCLUSIVE"),
+      'auto_delete' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_AUTO_DELETE"),
+      'bindingKey' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_BINDING_KEY"),
+    ),
   ),
 );
 $settings = array(
