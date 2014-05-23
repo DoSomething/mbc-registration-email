@@ -350,9 +350,6 @@ class MBC_UserRegistration
    */
   private function updateUserMailchimpError($errors, $composedBatch) {
 
-    // Change routingKey config to point to userMailchimpStatusQueue
-    $this->config['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
-
     // Add extries for each error encountered to the directUserStatusExchange
     foreach ($errors as $errorDetails){
 
@@ -363,8 +360,11 @@ class MBC_UserRegistration
         $status = $this->resubscribeEmail($errorDetails, $composedBatch);
       }
       else {
+        // Change routingKey config to point to userMailchimpStatusQueue
+        $this->routingKey = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
         $payload = serialize($errorDetails);
         $status = $this->messageBroker->publishMessage($payload);
+        
         $this->statHat->clearAddedStatNames();
         $this->statHat->addStatName('updateUserMailchimpError - Other');
         $this->statHat->reportCount(1);
