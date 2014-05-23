@@ -307,6 +307,7 @@ class MBC_UserRegistration
     if ($results != 0) {
       if ($results['error_count'] > 0) {
         $this->updateUserMailchimpError($results['errors'], $composedBatch);
+        $status .= 'mbc-registration-email - submitToMailChimp(): Success with errors!' . "\n";
       }
       else {
         $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . "\n";
