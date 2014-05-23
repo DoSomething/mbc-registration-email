@@ -353,8 +353,6 @@ class MBC_UserRegistration
     $this->config['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
 
     // Add extries for each error encountered to the directUserStatusExchange
-    $this->statHat->clearAddedStatNames();
-    $this->statHat->addStatName('updateUserMailchimpError');
     foreach ($errors as $errorDetails){
 
       // Resubscribe if email address is reported as unsubscribed - the
@@ -366,6 +364,8 @@ class MBC_UserRegistration
       else {
         $payload = serialize($errorDetails);
         $status = $this->messageBroker->publishMessage($payload);
+        $this->statHat->clearAddedStatNames();
+        $this->statHat->addStatName('updateUserMailchimpError - Other');
         $this->statHat->reportCount(1);
       }
 
