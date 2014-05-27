@@ -354,16 +354,17 @@ class MBC_UserRegistration
     foreach ($errors as $errorDetails){
 
       // Resubscribe if email address is reported as unsubscribed - the
-      // transaction / the user signing up for a campaign is confirmation that
+      // transaction / user signing up for a campaign is confirmation that
       // they want to resubscribe.
       if ($errorDetails['code'] == 212) {
         $status = $this->resubscribeEmail($errorDetails, $composedBatch);
       }
       else {
         // Change routingKey config to point to userMailchimpStatusQueue
-        $this->routingKey = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
+        $this->config['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
+        $messageBroker = new MessageBroker($this->credentials, $this->config);
         $payload = serialize($errorDetails);
-        $status = $this->messageBroker->publishMessage($payload);
+        $messageBroker->publishMessage($payload);
         
         $this->statHat->clearAddedStatNames();
         $this->statHat->addStatName('updateUserMailchimpError - Other');
