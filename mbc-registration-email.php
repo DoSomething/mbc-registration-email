@@ -70,6 +70,7 @@ $settings = array(
   'stathat_ez_key' => getenv("STATHAT_EZKEY"),
 );
 
+
 $status = '';
 
 // Kick off

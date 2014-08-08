@@ -105,6 +105,11 @@ class MBC_UserRegistration
     $newSubscribers = array();
     $processedCount = 0;
 
+    // @todo - Drupal producer needs to send birthdate_timestamp rather than
+    // birthdate as the sent value is in timestamp format.
+    if (isset($messagePayload['birthdate'])) {
+      $messagePayload['birthdate_timestamp'] = $messagePayload['birthdate'];
+    }
     while ($messageCount > 0 && $processedCount < self::BATCH_SIZE) {
       $messageDetails = $this->channel->basic_get($this->config['queue']['registrations']['name']);
       $messagePayload = unserialize($messageDetails->body);
@@ -112,7 +117,7 @@ class MBC_UserRegistration
         'email' => $messagePayload['email'],
         'fname' => $messagePayload['merge_vars']['FNAME'],
         'uid' => $messagePayload['uid'],
-        'birthdate' => $messagePayload['birthdate'],
+        'birthdate_timestamp' => $messagePayload['birthdate_timestamp'],
         'mobile' => isset($messagePayload['mobile']) ? $messagePayload['mobile'] : '',
         'mb_delivery_tag' => $messageDetails->delivery_info['delivery_tag'],
       );
@@ -211,7 +216,7 @@ class MBC_UserRegistration
     $composedSubscriberList = array();
     foreach ($newSubscribers as $newSubscriber) {
       // Dont add address of users under 13
-      if ($newSubscriber['birthdate'] < time() - (60 * 60 * 24 * 365 * 13)) {
+      if ($newSubscriber['birthdate_timestamp'] < time() - (60 * 60 * 24 * 365 * 13)) {
         $composedSubscriberList[] = array(
           'email' => array(
             'email' => $newSubscriber['email']
@@ -219,8 +224,8 @@ class MBC_UserRegistration
           'merge_vars' => array(
               'UID' => $newSubscriber['uid'],
               'MMERGE3' => $newSubscriber['fname'],
-              'BDAY' => date('m/d', $newSubscriber['birthdate']),
-              'BDAYFULL' => date('m/d/Y', $newSubscriber['birthdate']),
+              'BDAY' => date('m/d', $newSubscriber['birthdate_timestamp']),
+              'BDAYFULL' => date('m/d/Y', $newSubscriber['birthdate_timestamp']),
               'MMERGE7' => $newSubscriber['mobile'],
           ),
         );
