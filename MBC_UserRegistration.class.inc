@@ -113,14 +113,26 @@ class MBC_UserRegistration
     while ($messageCount > 0 && $processedCount < self::BATCH_SIZE) {
       $messageDetails = $this->channel->basic_get($this->config['queue']['registrations']['name']);
       $messagePayload = unserialize($messageDetails->body);
-      $newSubscribers[] = array(
+      $newSubscribers[$processedCount] = array(
         'email' => $messagePayload['email'],
-        'fname' => $messagePayload['merge_vars']['FNAME'],
-        'uid' => $messagePayload['uid'],
-        'birthdate_timestamp' => isset($messagePayload['birthdate_timestamp']) ? $messagePayload['birthdate_timestamp'] : $messagePayload['birthdate'],
-        'mobile' => isset($messagePayload['mobile']) ? $messagePayload['mobile'] : '',
         'mb_delivery_tag' => $messageDetails->delivery_info['delivery_tag'],
       );
+      if (isset($messagePayload['merge_vars']['FNAME'])) {
+        $newSubscribers[$processedCount]['fname'] = $messagePayload['merge_vars']['FNAME'];
+      }
+      if (isset($messagePayload['uid'])) {
+        $newSubscribers[$processedCount]['uid'] = $messagePayload['uid'];
+      }
+      if (isset($messagePayload['birthdate_timestamp'])) {
+        $newSubscribers[$processedCount]['birthdate_timestamp'] = $messagePayload['birthdate_timestamp'];
+      }
+      elseif (isset($messagePayload['birthdate'])) {
+        $newSubscribers[$processedCount]['birthdate_timestamp'] = $messagePayload['birthdate'];
+      }
+      if (isset($messagePayload['mobile'])) {
+        $newSubscribers[$processedCount]['mobile'] = $messagePayload['mobile'];
+      }
+
       $messageCount--;
       $processedCount++;
     }
