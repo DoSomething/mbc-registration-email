@@ -234,11 +234,11 @@ class MBC_UserRegistration
             'email' => $newSubscriber['email']
           ),
           'merge_vars' => array(
-              'UID' => $newSubscriber['uid'],
-              'MMERGE3' => $newSubscriber['fname'],
-              'BDAY' => date('m/d', $newSubscriber['birthdate_timestamp']),
-              'BDAYFULL' => date('m/d/Y', $newSubscriber['birthdate_timestamp']),
-              'MMERGE7' => $newSubscriber['mobile'],
+              'UID' => isset($newSubscriber['uid']) ? $newSubscriber['uid'] : '',
+              'MMERGE3' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
+              'BDAY' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d', $newSubscriber['birthdate_timestamp']) : '',
+              'BDAYFULL' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d/Y', $newSubscriber['birthdate_timestamp']) : '',
+              'MMERGE7' => isset($newSubscriber['mobile']) ? $newSubscriber['mobile'] : '',
           ),
         );
         $mbDeliveryTags[$newSubscriber['email']] = $newSubscriber['mb_delivery_tag'];
