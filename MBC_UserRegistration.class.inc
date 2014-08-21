@@ -367,6 +367,7 @@ class MBC_UserRegistration
    */
   private function updateUserMailchimpError($errors, $composedBatch) {
 
+    $status = NULL;
     $cfg = $this->config;
     $cfg['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
     $mbError = new MessageBroker($this->credentials, $cfg);
