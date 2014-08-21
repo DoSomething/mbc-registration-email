@@ -228,7 +228,8 @@ class MBC_UserRegistration
     $composedSubscriberList = array();
     foreach ($newSubscribers as $newSubscriber) {
       // Dont add address of users under 13
-      if ($newSubscriber['birthdate_timestamp'] < time() - (60 * 60 * 24 * 365 * 13)) {
+      if ((isset($newSubscriber['birthdate_timestamp']) && $newSubscriber['birthdate_timestamp'] < time() - (60 * 60 * 24 * 365 * 13)) ||
+          (!isset($newSubscriber['birthdate_timestamp']))) {
         $composedSubscriberList[] = array(
           'email' => array(
             'email' => $newSubscriber['email']
