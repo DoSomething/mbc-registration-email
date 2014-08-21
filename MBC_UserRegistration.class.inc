@@ -54,7 +54,7 @@ class MBC_UserRegistration
   /**
    * The number of queue entries to process in each session
    */
-  const BATCH_SIZE = 200;
+  const BATCH_SIZE = 100;
 
   /**
    * Constructor for MBC_UserRegistration
@@ -105,11 +105,6 @@ class MBC_UserRegistration
     $newSubscribers = array();
     $processedCount = 0;
 
-    // @todo - Drupal producer needs to send birthdate_timestamp rather than
-    // birthdate as the sent value is in timestamp format.
-    if (isset($messagePayload['birthdate'])) {
-      $messagePayload['birthdate_timestamp'] = $messagePayload['birthdate'];
-    }
     while ($messageCount > 0 && $processedCount < self::BATCH_SIZE) {
       $messageDetails = $this->channel->basic_get($this->config['queue']['registrations']['name']);
       $messagePayload = unserialize($messageDetails->body);
@@ -227,9 +222,20 @@ class MBC_UserRegistration
 
     $composedSubscriberList = array();
     foreach ($newSubscribers as $newSubscriber) {
+
+      // Remove invalid values
+      if (isset($newSubscriber['birthdate_timestamp']) && !is_int($newSubscriber['birthdate_timestamp']) ||
+          $newSubscriber['birthdate_timestamp'] > (time() - (60 * 60 * 24 * 365 * 1))) {
+        unset($newSubscriber['birthdate_timestamp']);
+      }
+      if (isset($newSubscriber['mobile']) && !strlen($newSubscriber['mobile']) < 8) {
+        unset($newSubscriber['mobile']);
+      }
+
       // Dont add address of users under 13
-      if ((isset($newSubscriber['birthdate_timestamp']) && $newSubscriber['birthdate_timestamp'] < time() - (60 * 60 * 24 * 365 * 13)) ||
-          (!isset($newSubscriber['birthdate_timestamp']))) {
+      if (!isset($newSubscriber['birthdate_timestamp']) ||
+          (isset($newSubscriber['birthdate_timestamp']) &&
+          ($newSubscriber['birthdate_timestamp'] < time() - (60 * 60 * 24 * 365 * 13)))) {
         $composedSubscriberList[] = array(
           'email' => array(
             'email' => $newSubscriber['email']
@@ -243,6 +249,9 @@ class MBC_UserRegistration
           ),
         );
         $mbDeliveryTags[$newSubscriber['email']] = $newSubscriber['mb_delivery_tag'];
+      }
+      else {
+        $this->channel->basic_ack($newSubscriber['mb_delivery_tag']);
       }
     }
 
@@ -340,14 +349,15 @@ class MBC_UserRegistration
       $this->statHat->addStatName('submitToMailChimp-batch-subscribe update_count');
       $this->statHat->reportCount($results['update_count']);
 
-      // Acknowledge submissions that been processed
-      foreach($mbDeliveryTags as $tagEmail => $mbDeliveryTag) {
-        $this->channel->basic_ack($mbDeliveryTag);
-      }
     }
     else {
-      $this->channel->basic_recover(TRUE);
-      $status .= 'ERROR: No results returned from Mailchimp lists/batch-subscribe submisison.';
+      // $this->channel->basic_recover(TRUE);
+      $status .= 'Hmmm: No results returned from Mailchimp lists/batch-subscribe submisison.';
+    }
+
+    // Acknowledge submissions that been processed
+    foreach($mbDeliveryTags as $tagEmail => $mbDeliveryTag) {
+      $this->channel->basic_ack($mbDeliveryTag);
     }
 
     return $status;
