@@ -117,7 +117,7 @@ class MBC_UserRegistration
         'email' => $messagePayload['email'],
         'fname' => $messagePayload['merge_vars']['FNAME'],
         'uid' => $messagePayload['uid'],
-        'birthdate_timestamp' => $messagePayload['birthdate_timestamp'],
+        'birthdate_timestamp' =>       isset($messagePayload['birthdate_timestamp']) ? $messagePayload['birthdate_timestamp'] : $messagePayload['birthdate'],
         'mobile' => isset($messagePayload['mobile']) ? $messagePayload['mobile'] : '',
         'mb_delivery_tag' => $messageDetails->delivery_info['delivery_tag'],
       );
