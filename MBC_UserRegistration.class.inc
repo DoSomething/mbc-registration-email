@@ -127,6 +127,9 @@ class MBC_UserRegistration
       if (isset($messagePayload['mobile'])) {
         $newSubscribers[$processedCount]['mobile'] = $messagePayload['mobile'];
       }
+      if (isset($messagePayload['source'])) {
+        $newSubscribers[$processedCount]['source'] = $messagePayload['source'];
+      }
 
       $messageCount--;
       $processedCount++;
@@ -221,11 +224,11 @@ class MBC_UserRegistration
     $mbDeliveryTags = array();
 
     $composedSubscriberList = array();
-    foreach ($newSubscribers as $newSubscriber) {
+    foreach ($newSubscribers as $newSubscriberCount => $newSubscriber) {
 
       // Remove invalid values
       if (isset($newSubscriber['birthdate_timestamp']) && !is_int($newSubscriber['birthdate_timestamp']) ||
-          $newSubscriber['birthdate_timestamp'] > (time() - (60 * 60 * 24 * 365 * 1))) {
+          isset($newSubscriber['birthdate_timestamp'])  && $newSubscriber['birthdate_timestamp'] > (time() - (60 * 60 * 24 * 365 * 1))) {
         unset($newSubscriber['birthdate_timestamp']);
       }
       if (isset($newSubscriber['mobile']) && !strlen($newSubscriber['mobile']) < 8) {
@@ -236,18 +239,28 @@ class MBC_UserRegistration
       if (!isset($newSubscriber['birthdate_timestamp']) ||
           (isset($newSubscriber['birthdate_timestamp']) &&
           ($newSubscriber['birthdate_timestamp'] < time() - (60 * 60 * 24 * 365 * 13)))) {
-        $composedSubscriberList[] = array(
+        $composedSubscriberList[$newSubscriberCount] = array(
           'email' => array(
             'email' => $newSubscriber['email']
           ),
-          'merge_vars' => array(
-              'UID' => isset($newSubscriber['uid']) ? $newSubscriber['uid'] : '',
-              'MMERGE3' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
-              'BDAY' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d', $newSubscriber['birthdate_timestamp']) : '',
-              'BDAYFULL' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d/Y', $newSubscriber['birthdate_timestamp']) : '',
-              'MMERGE7' => isset($newSubscriber['mobile']) ? $newSubscriber['mobile'] : '',
-          ),
         );
+        $mergeVars = array(
+          'UID' => isset($newSubscriber['uid']) ? $newSubscriber['uid'] : '',
+          'MMERGE3' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
+          'BDAY' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d', $newSubscriber['birthdate_timestamp']) : '',
+          'BDAYFULL' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d/Y', $newSubscriber['birthdate_timestamp']) : '',
+          'MMERGE7' => isset($newSubscriber['mobile']) ? $newSubscriber['mobile'] : '',
+        );
+        if (isset($newSubscriber['source'])) {
+          $mergeVars['groupings'] = array(
+            0 => array(
+              'id' => 10657,  // DoSomething Memebers -> Import Source
+              'groups' => array($newSubscriber['source'])
+            ),
+          );
+        }
+        $composedSubscriberList[$newSubscriberCount]['merge_vars'] = $mergeVars;
+
         $mbDeliveryTags[$newSubscriber['email']] = $newSubscriber['mb_delivery_tag'];
       }
       else {
@@ -327,7 +340,7 @@ class MBC_UserRegistration
       'batch' => $composedBatch,
       'double_optin' => FALSE,
       'update_existing' => TRUE,
-      'replace_interests' => FALSE
+      'replace_interests' => FALSE,
     ));
 
     $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . "\n";
