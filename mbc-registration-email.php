@@ -66,7 +66,6 @@ $config = array(
 );
 $settings = array(
   'mailchimp_apikey' => getenv("MAILCHIMP_APIKEY"),
-  'mailchimp_list_id' => getenv("MAILCHIMP_LIST_ID"),
   'stathat_ez_key' => getenv("STATHAT_EZKEY"),
 );
 

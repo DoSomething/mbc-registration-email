@@ -36,7 +36,7 @@ class MBC_UserRegistration
    * @var array
    */
   private $credentials;
-  
+
   /**
    * Setting from external services - Mailchimp.
    *
@@ -108,42 +108,53 @@ class MBC_UserRegistration
     while ($messageCount > 0 && $processedCount < self::BATCH_SIZE) {
       $messageDetails = $this->channel->basic_get($this->config['queue']['registrations']['name']);
       $messagePayload = unserialize($messageDetails->body);
-      $newSubscribers[$processedCount] = array(
-        'email' => $messagePayload['email'],
-        'mb_delivery_tag' => $messageDetails->delivery_info['delivery_tag'],
-      );
-      if (isset($messagePayload['merge_vars']['FNAME'])) {
-        $newSubscribers[$processedCount]['fname'] = $messagePayload['merge_vars']['FNAME'];
-      }
-      if (isset($messagePayload['uid'])) {
-        $newSubscribers[$processedCount]['uid'] = $messagePayload['uid'];
-      }
-      if (isset($messagePayload['birthdate_timestamp'])) {
-        $newSubscribers[$processedCount]['birthdate_timestamp'] = $messagePayload['birthdate_timestamp'];
-      }
-      elseif (isset($messagePayload['birthdate'])) {
-        $newSubscribers[$processedCount]['birthdate_timestamp'] = $messagePayload['birthdate'];
-      }
-      if (isset($messagePayload['mobile'])) {
-        $newSubscribers[$processedCount]['mobile'] = $messagePayload['mobile'];
-      }
-      if (isset($messagePayload['source'])) {
-        $newSubscribers[$processedCount]['source'] = $messagePayload['source'];
+
+      $mlid = !empty($messagePayload['mailchimp_list_id']) ? $messagePayload['mailchimp_list_id'] : false;
+      if ($mlid) {
+        $subscriber = &$newSubscribers[$mlid][];
+        $subscriber['email'] = $messagePayload['email'];
+        $subscriber['mb_delivery_tag'] = $messageDetails->delivery_info['delivery_tag'];
+
+        if (isset($messagePayload['merge_vars']['FNAME'])) {
+          $subscriber['fname'] = $messagePayload['merge_vars']['FNAME'];
+        }
+        if (isset($messagePayload['uid'])) {
+          $subscriber['uid'] = $messagePayload['uid'];
+        }
+        if (isset($messagePayload['birthdate_timestamp'])) {
+          $subscriber['birthdate_timestamp'] = $messagePayload['birthdate_timestamp'];
+        }
+        elseif (isset($messagePayload['birthdate'])) {
+          $subscriber['birthdate_timestamp'] = $messagePayload['birthdate'];
+        }
+        if (isset($messagePayload['mobile'])) {
+          $subscriber['mobile'] = $messagePayload['mobile'];
+        }
+        if (isset($messagePayload['source'])) {
+          $subscriber['source'] = $messagePayload['source'];
+        }
       }
 
       $messageCount--;
       $processedCount++;
     }
 
-    list($composedSubscriberList, $mbDeliveryTags) = $this->composeSubscriberSubmission($newSubscribers);
-    if (count($composedSubscriberList) > 0) {
-      $results = $this->submitToMailChimp($composedSubscriberList, $mbDeliveryTags);
+    if (empty($newSubscribers)) {
+      return 'No new accounts to submit to MailChimp.';
+    }
+
+    $results = '';
+    foreach ($newSubscribers as $mlid => $subscribers) {
+      list($composedSubscriberList, $mbDeliveryTags) = $this->composeSubscriberSubmission($subscribers);
+      if (count($composedSubscriberList) < 1) {
+        $results .= 'No new accounts to submit to MailChimp list' . $mlid . '.' . PHP_EOL;
+        continue;
+      }
+
+      $results .= $this->submitToMailChimp($mlid, $composedSubscriberList, $mbDeliveryTags);
       $this->statHat->clearAddedStatNames();
       $this->statHat->addStatName('consumeNewRegistrationsQueue');
       $this->statHat->reportCount($processedCount);
-    }
-    else {
-      $results = 'No new accounts to submit to MailChimp.';
     }
 
     return $results;
@@ -174,9 +185,10 @@ class MBC_UserRegistration
       $messageDetails = $this->channel->basic_get($this->config['queue']['campaign_signups']['name']);
       $messagePayload = unserialize($messageDetails->body);
 
-      if (isset($messagePayload['mailchimp_group_name']) && $messagePayload['mailchimp_group_name'] != '') {
+      $mlid = !empty($messagePayload['mailchimp_list_id']) ? $messagePayload['mailchimp_list_id'] : false;
+      if ($mlid && !empty($messagePayload['mailchimp_group_name'])) {
 
-        $campaignSignups[] = array(
+        $campaignSignups[$mlid][] = array(
           'email' => $messagePayload['email'],
           'mb_delivery_tag' => $messageDetails->delivery_info['delivery_tag'],
           'mailchimp_group_name' => $messagePayload['mailchimp_group_name'],
@@ -188,22 +200,29 @@ class MBC_UserRegistration
         // No group setting, skip entry in batch submission. Send acknowledgment
         // to remove entry from queue
         $this->channel->basic_ack($messageDetails->delivery_info['delivery_tag']);
-        echo $messagePayload['email'] . ' skipped, no group_name.',  "\n";
+        echo $messagePayload['email'] . ' skipped, no group_name.',  PHP_EOL;
       }
 
       $messageCount--;
       $messagesProcessed++;
     }
 
-    list($composedSignupList, $mbDeliveryTags) = $this->composeSignupSubmission($campaignSignups);
-    if (count($composedSignupList)) {
-      $results = $this->submitToMailChimp($composedSignupList, $mbDeliveryTags);
+    if (empty($campaignSignups)) {
+      return 'No new campaign signups accounts to submit to MailChimp.';
+    }
+
+    $results = '';
+    foreach ($campaignSignups as $mlid => $signups) {
+      list($composedSignupList, $mbDeliveryTags) = $this->composeSubscriberSubmission($signups);
+      if (count($composedSignupList) < 1) {
+        $results .= 'No new campaign signups accounts to submit to MailChimp list' . $mlid . '.' . PHP_EOL;
+        continue;
+      }
+
+      $results .= $this->submitToMailChimp($mlid, $composedSignupList, $mbDeliveryTags);
       $this->statHat->clearAddedStatNames();
       $this->statHat->addStatName('consumeMailchimpCampaignSignupQueue');
       $this->statHat->reportCount($messagesProcessed);
-    }
-    else {
-      $results = 'No new campaign signups accounts to submit to MailChimp.';
     }
 
     return $results;
@@ -308,6 +327,9 @@ class MBC_UserRegistration
   /**
    * Make signup submission to MailChimp
    *
+   * @param string $mlid
+   *   The MailChimp list id to connect to.
+   *
    * @param array $composedBatch
    *   The list of email address to be submitted to MailChimp
    *
@@ -318,7 +340,7 @@ class MBC_UserRegistration
    *   A list of the RabbitMQ queue entry IDs that have been successfully
    *   submitted to MailChimp.
    */
-  private function submitToMailChimp($composedBatch = array(), $mbDeliveryTags = array()) {
+  private function submitToMailChimp($mlid, $composedBatch = array(), $mbDeliveryTags = array()) {
 
     $MailChimp = new \Drewm\MailChimp($this->settings['mailchimp_apikey']);
 
@@ -336,24 +358,24 @@ class MBC_UserRegistration
     $results['update_count'] = 0;
 
     $results = $MailChimp->call("lists/batch-subscribe", array(
-      'id' => $this->settings['mailchimp_list_id'],
+      'id' => $mlid,
       'batch' => $composedBatch,
       'double_optin' => FALSE,
       'update_existing' => TRUE,
       'replace_interests' => FALSE,
     ));
 
-    $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . "\n";
+    $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . PHP_EOL;
     if ($results != 0) {
       if ($results['error_count'] > 0) {
         $this->updateUserMailchimpError($results['errors'], $composedBatch);
-        $status .= 'mbc-registration-email - submitToMailChimp(): Success with errors!' . "\n";
+        $status .= 'mbc-registration-email - submitToMailChimp(): Success with errors!' . PHP_EOL;
       }
       else {
-        $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . "\n";
+        $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . PHP_EOL;
       }
-      $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . "\n";
-      
+      $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . PHP_EOL;
+
       $this->statHat->clearAddedStatNames();
       $this->statHat->addStatName('submitToMailChimp-batch-subscribe add_count');
       $this->statHat->reportCount($results['add_count']);
@@ -408,7 +430,7 @@ class MBC_UserRegistration
       else {
         $payload = serialize($errorDetails);
         $mbError->publishMessage($payload);
-        
+
         $this->statHat->clearAddedStatNames();
         $this->statHat->addStatName('updateUserMailchimpError - Other');
         $this->statHat->reportCount(1);
