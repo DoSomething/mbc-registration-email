@@ -368,7 +368,7 @@ class MBC_UserRegistration
     $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . PHP_EOL;
     if ($results != 0) {
       if ($results['error_count'] > 0) {
-        $this->updateUserMailchimpError($results['errors'], $composedBatch);
+        $this->updateUserMailchimpError($results['errors'], $mlid, $composedBatch);
         $status .= 'mbc-registration-email - submitToMailChimp(): Success with errors!' . PHP_EOL;
       }
       else {
@@ -407,11 +407,14 @@ class MBC_UserRegistration
    * @param array $errors
    *   A list of RabbitMQ delivery tags being processed in batch.
    *
+   * @param string $mlid
+   *   The MailChimp list id to connect to.
+   *
    * @param array $composedBatch
    *  List or email address and their Mailchimp interest group assignments that
    *  were submitted as a batch.
    */
-  private function updateUserMailchimpError($errors, $composedBatch) {
+  private function updateUserMailchimpError($errors, $mlid, $composedBatch) {
 
     $status = NULL;
     $cfg = $this->config;
@@ -425,7 +428,7 @@ class MBC_UserRegistration
       // transaction / user signing up for a campaign is confirmation that
       // they want to resubscribe.
       if ($errorDetails['code'] == 212) {
-        $status = $this->resubscribeEmail($errorDetails, $composedBatch);
+        $status = $this->resubscribeEmail($errorDetails, $mlid, $composedBatch);
       }
       else {
         $payload = serialize($errorDetails);
@@ -449,6 +452,9 @@ class MBC_UserRegistration
    *   The error details reported when the email address was submitted as a part
    *   of a batch submission.
    *
+   *  @param string $mlid
+   *   The MailChimp list id to connect to.
+   *
    * @param array $composedBatch
    *   The details of the batch data sent to Mailchimp. The interest group
    *   details will be extractacted for the /lists/subscribe submission to
@@ -457,7 +463,7 @@ class MBC_UserRegistration
    * @return string $status
    *   The results of the submission to the UserAPI
    */
-  private function resubscribeEmail($errorDetails, $composedBatch) {
+  private function resubscribeEmail($errorDetails, $mlid, $composedBatch) {
 
     // Lookup the group assignment details from $composedBatch by the email
     // address in $errorDetails
@@ -472,7 +478,7 @@ class MBC_UserRegistration
     $mc = new \Drewm\MailChimp($this->settings['mailchimp_apikey']);
 
     $results = $mc->call("lists/subscribe", array(
-      'id' => $this->settings['mailchimp_list_id'],
+      'id' => $mlid,
       'email' => array(
         'email' => $composedItem['email']['email']
         ),
