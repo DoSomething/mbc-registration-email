@@ -110,6 +110,12 @@ class MBC_UserRegistration
       $messagePayload = unserialize($messageDetails->body);
 
       $mlid = !empty($messagePayload['mailchimp_list_id']) ? $messagePayload['mailchimp_list_id'] : false;
+
+      // Temp solution to resolve user imaports that don't have the mailchimp_list_id setting in the payload
+      if (!$mlid && (isset($messagePayload['source']) && $messagePayload['source'] == 'herCampus' || $messagePayload['source'] == 'niche')) {
+        $mlid = 'f2fab1dfd4';
+      }
+
       if ($mlid) {
         $subscriber = &$newSubscribers[$mlid][];
         $subscriber['email'] = $messagePayload['email'];
@@ -370,7 +376,7 @@ class MBC_UserRegistration
     if ($results != 0) {
       if ($results['error_count'] > 0) {
         $statusMessage = $this->updateUserMailchimpError($results['errors'], $mlid, $composedBatch);
-        $status .= 'mbc-registration-email - submitToMailChimp(): Success with errors - ' . $statusMessage . PHP_EO;
+        $status .= 'mbc-registration-email - submitToMailChimp(): Success with errors - ' . $statusMessage . PHP_EOL;
       }
       else {
         $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . PHP_EOL;
