@@ -325,6 +325,7 @@ class MBC_UserRegistration
     // Debugging
     // $results1 = $MailChimp->call("lists/list", array());
     // $results2 = $MailChimp->call("lists/interest-groupings", array('id' => 'f2fab1dfd4'));
+    // $results3 = $MailChimp->call("lists/interest-groupings", array('id' => 'a27895fe0c'));
 
     // batchSubscribe($id, $batch, $double_optin=true, $update_existing=false, $replace_interests=true)
     // replace_interests: optional - flag to determine whether we replace the
@@ -346,8 +347,8 @@ class MBC_UserRegistration
     $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . "\n";
     if ($results != 0) {
       if ($results['error_count'] > 0) {
-        $this->updateUserMailchimpError($results['errors'], $composedBatch);
-        $status .= 'mbc-registration-email - submitToMailChimp(): Success with errors!' . "\n";
+        $statusMessage = $this->updateUserMailchimpError($results['errors'], $composedBatch);
+        $status .= 'mbc-registration-email - submitToMailChimp(): Success with errors - ' . $statusMessage . "\n";
       }
       else {
         $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . "\n";
@@ -374,7 +375,6 @@ class MBC_UserRegistration
     }
 
     return $status;
-
   }
 
   /**
@@ -391,7 +391,8 @@ class MBC_UserRegistration
    */
   private function updateUserMailchimpError($errors, $composedBatch) {
 
-    $status = NULL;
+    $resubscribes = 0;
+    $failedResubscribes = 0;
     $cfg = $this->config;
     $cfg['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
     $mbError = new MessageBroker($this->credentials, $cfg);
@@ -403,7 +404,8 @@ class MBC_UserRegistration
       // transaction / user signing up for a campaign is confirmation that
       // they want to resubscribe.
       if ($errorDetails['code'] == 212) {
-        $status = $this->resubscribeEmail($errorDetails, $composedBatch);
+        $resubscribeStatus = $this->resubscribeEmail($errorDetails, $composedBatch);
+        $resubscribeStatus ? $resubscribes++ : $failedResubscribes++;
       }
       else {
         $payload = serialize($errorDetails);
@@ -416,7 +418,7 @@ class MBC_UserRegistration
 
     }
 
-    return $status;
+    return 'resubscribes: ' . $resubscribes . ' - Failed Resubscribes: ' . $failedResubscribes;
   }
 
  /**
@@ -464,12 +466,15 @@ class MBC_UserRegistration
     $this->statHat->clearAddedStatNames();
     if (isset($results['error'])) {
       $this->statHat->addStatName('updateUserMailchimpError-resubscribeEmail Error');
+      $status = FALSE;
     }
     else {
       $this->statHat->addStatName('updateUserMailchimpError-resubscribeEmail');
+      $status = TRUE;
     }
     $this->statHat->reportCount(1);
 
+    return $status;
   }
 
 }
