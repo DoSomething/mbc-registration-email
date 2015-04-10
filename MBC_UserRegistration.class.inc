@@ -112,7 +112,7 @@ class MBC_UserRegistration
       $mlid = !empty($messagePayload['mailchimp_list_id']) ? $messagePayload['mailchimp_list_id'] : false;
 
       // Temp solution to resolve user imaports that don't have the mailchimp_list_id setting in the payload
-      if (!$mlid && (isset($messagePayload['source']) && $messagePayload['source'] == 'herCampus' || $messagePayload['source'] == 'niche')) {
+      if (!$mlid && (isset($messagePayload['source']) && $messagePayload['source'] == 'herCampus' || $messagePayload['source'] == 'niche' || $messagePayload['source'] == 'att-ichannel')) {
         $mlid = 'f2fab1dfd4';
       }
 
