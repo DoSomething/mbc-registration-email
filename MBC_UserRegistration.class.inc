@@ -318,7 +318,7 @@ class MBC_UserRegistration
         'merge_vars' => array(
           'groupings' => array(
             0 => array(
-              'id' => $campaignSignup['mailchimp_grouping_id'], // Campaigns2013 (10621) or Campaigns2014 (10637)
+              'id' => $campaignSignup['mailchimp_grouping_id'], // Campaigns2013 (10621), Campaigns2014 (10637) or Campaigns2015 (10641)
               'groups' => array($campaignSignup['mailchimp_group_name']),
             )
           ),
