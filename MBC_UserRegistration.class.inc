@@ -83,7 +83,7 @@ class MBC_UserRegistration
 
     // Stathat
     $this->statHat = new StatHat($this->settings['stathat_ez_key'], 'mbc-registration-email:');
-    $this->statHat->setIsProduction(TRUE);
+    $this->statHat->setIsProduction(isset($settings['use_stathat_tracking']) ? $settings['use_stathat_tracking'] : FALSE);
   }
 
   /**
