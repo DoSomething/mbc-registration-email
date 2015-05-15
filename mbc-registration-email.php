@@ -8,17 +8,16 @@
  * segments for mass mailouts.
  */
 
+date_default_timezone_set('America/New_York');
+
 // Load up the Composer autoload magic
 require_once __DIR__ . '/vendor/autoload.php';
+use DoSomething\MB_Toolbox\MB_Configuration;
 
 // Load configuration settings common to the Message Broker system
 // symlinks in the project directory point to the actual location of the files
-require __DIR__ . '/mb-secure-config.inc';
-require __DIR__ . '/mb-config.inc';
-
-require __DIR__ . '/MBC_UserRegistration.class.inc';
-
-use DoSomething\MBStatTracker\StatHat;
+require_once __DIR__ . '/messagebroker-config/mb-secure-config.inc';
+require_once __DIR__ . '/MBC_UserRegistration.class.inc';
 
 // Settings
 $credentials = array(
@@ -29,46 +28,49 @@ $credentials = array(
   'vhost' => getenv("RABBITMQ_VHOST"),
 );
 
-$config = array(
-  'exchange' => array(
-    'name' => getenv("MB_TRANSACTIONAL_EXCHANGE"),
-    'type' => getenv("MB_TRANSACTIONAL_EXCHANGE_TYPE"),
-    'passive' => getenv("MB_TRANSACTIONAL_EXCHANGE_PASSIVE"),
-    'durable' => getenv("MB_TRANSACTIONAL_EXCHANGE_DURABLE"),
-    'auto_delete' => getenv("MB_TRANSACTIONAL_EXCHANGE_AUTO_DELETE"),
-  ),
-  'queue' => array(
-    'registrations' => array(
-      'name' => getenv("MB_USER_REGISTRATION_QUEUE"),
-      'passive' => getenv("MB_USER_REGISTRATION_QUEUE_PASSIVE"),
-      'durable' => getenv("MB_USER_REGISTRATION_QUEUE_DURABLE"),
-      'exclusive' => getenv("MB_USER_REGISTRATION_QUEUE_EXCLUSIVE"),
-      'auto_delete' => getenv("MB_USER_REGISTRATION_QUEUE_AUTO_DELETE"),
-      'bindingKey' => getenv("MB_USER_REGISTRATION_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN"),
-    ),
-    'campaign_signups' => array(
-      'name' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE"),
-      'passive' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_PASSIVE"),
-      'durable' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_DURABLE"),
-      'exclusive' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_EXCLUSIVE"),
-      'auto_delete' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_AUTO_DELETE"),
-      'bindingKey' => getenv("MB_MAILCHIMP_CAMPAIGN_SIGNUP_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN"),
-    ),
-    'mailchimp_status' => array(
-      'name' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE"),
-      'passive' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_PASSIVE"),
-      'durable' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_DURABLE"),
-      'exclusive' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_EXCLUSIVE"),
-      'auto_delete' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_AUTO_DELETE"),
-      'bindingKey' => getenv("MB_USER_MAILCHIMP_STATUS_QUEUE_TOPIC_MB_TRANSACTIONAL_EXCHANGE_PATTERN"),
-    ),
-  ),
-);
 $settings = array(
   'mailchimp_apikey' => getenv("MAILCHIMP_APIKEY"),
   'stathat_ez_key' => getenv("STATHAT_EZKEY"),
+  'use_stathat_tracking' => getenv('USE_STAT_TRACKING'),
 );
 
+$config = array();
+$source = __DIR__ . '/messagebroker-config/mb_config.json';
+$mb_config = new MB_Configuration($source, $settings);
+$transactionalExchange = $mb_config->exchangeSettings('transactionalExchange');
+
+$config = array();
+$source = __DIR__ . '/messagebroker-config/mb_config.json';
+$mb_config = new MB_Configuration($source, $settings);
+$transactionalExchange = $mb_config->exchangeSettings('transactionalExchange');
+
+$config['exchange'] = array(
+  'name' => $transactionalExchange->name,
+  'type' => $transactionalExchange->type,
+  'passive' => $transactionalExchange->passive,
+  'durable' => $transactionalExchange->durable,
+  'auto_delete' => $transactionalExchange->auto_delete,
+);
+foreach ($transactionalExchange->queues->userRegistrationQueue->binding_patterns as $binding_key) {
+  $config['queue'][] = array(
+    'name' => $transactionalExchange->queues->userRegistrationQueue->name,
+    'passive' => $transactionalExchange->queues->userRegistrationQueue->passive,
+    'durable' =>  $transactionalExchange->queues->userRegistrationQueue->durable,
+    'exclusive' =>  $transactionalExchange->queues->userRegistrationQueue->exclusive,
+    'auto_delete' =>  $transactionalExchange->queues->userRegistrationQueue->auto_delete,
+    'bindingKey' => $binding_key,
+  );
+}
+foreach ($transactionalExchange->queues->mailchimpCampaignSignupQueue->binding_patterns as $binding_key) {
+  $config['queue'][] = array(
+    'name' => $transactionalExchange->queues->mailchimpCampaignSignupQueue->name,
+    'passive' => $transactionalExchange->queues->mailchimpCampaignSignupQueue->passive,
+    'durable' =>  $transactionalExchange->queues->mailchimpCampaignSignupQueue->durable,
+    'exclusive' =>  $transactionalExchange->queues->mailchimpCampaignSignupQueue->exclusive,
+    'auto_delete' =>  $transactionalExchange->queues->mailchimpCampaignSignupQueue->auto_delete,
+    'bindingKey' => $binding_key,
+  );
+}
 
 $status = '';
 

@@ -1,5 +1,6 @@
 <?php
 
+use DoSomething\MB_Toolbox\MB_Configuration;
 use DoSomething\MBStatTracker\StatHat;
 
 /**
@@ -95,7 +96,7 @@ class MBC_UserRegistration
   public function consumeNewRegistrationsQueue() {
 
     // Get the status details of the queue by requesting a declare
-    list($this->channel, $status) = $this->messageBroker->setupQueue($this->config['queue']['registrations']['name'], $this->channel);
+    list($this->channel, $status) = $this->messageBroker->setupQueue($this->config['queue'][0]['name'], $this->channel);
 
     $messageCount = $status[1];
     // @todo: Respond to unacknowledged messages
@@ -106,7 +107,7 @@ class MBC_UserRegistration
     $processedCount = 0;
 
     while ($messageCount > 0 && $processedCount < self::BATCH_SIZE) {
-      $messageDetails = $this->channel->basic_get($this->config['queue']['registrations']['name']);
+      $messageDetails = $this->channel->basic_get($this->config['queue'][0]['name']);
       $messagePayload = unserialize($messageDetails->body);
 
       $mlid = !empty($messagePayload['mailchimp_list_id']) ? $messagePayload['mailchimp_list_id'] : false;
@@ -177,7 +178,7 @@ class MBC_UserRegistration
   public function consumeMailchimpCampaignSignupQueue() {
 
     // Get the status details of the queue by requesting a declare
-    list($this->channel, $status) = $this->messageBroker->setupQueue($this->config['queue']['campaign_signups']['name'], $this->channel);
+    list($this->channel, $status) = $this->messageBroker->setupQueue($this->config['queue'][1]['name'], $this->channel);
 
     $messageCount = $status[1];
     // @todo: Respond to unacknowledged messages
@@ -188,7 +189,7 @@ class MBC_UserRegistration
     $messagesProcessed = 0;
 
     while ($messageCount > 0 && $messagesProcessed < self::BATCH_SIZE) {
-      $messageDetails = $this->channel->basic_get($this->config['queue']['campaign_signups']['name']);
+      $messageDetails = $this->channel->basic_get($this->config['queue'][1]['name']);
       $messagePayload = unserialize($messageDetails->body);
 
       $mlid = !empty($messagePayload['mailchimp_list_id']) ? $messagePayload['mailchimp_list_id'] : false;
@@ -397,7 +398,7 @@ class MBC_UserRegistration
       $status .= 'Hmmm: No results returned from Mailchimp lists/batch-subscribe submisison.';
     }
 
-    // Acknowledge submissions that been processed
+    // Ack back submissions that have been processed
     foreach($mbDeliveryTags as $tagEmail => $mbDeliveryTag) {
       $this->channel->basic_ack($mbDeliveryTag);
     }
@@ -424,9 +425,31 @@ class MBC_UserRegistration
 
     $resubscribes = 0;
     $failedResubscribes = 0;
-    $cfg = $this->config;
-    $cfg['routingKey'] = getenv('MB_USER_MAILCHIMP_STATUS_ROUTING_KEY');
-    $mbError = new MessageBroker($this->credentials, $cfg);
+
+    $config = array();
+    $source = __DIR__ . '/messagebroker-config/mb_config.json';
+    $mb_config = new MB_Configuration($source, $this->settings);
+    $transactionalExchange = $mb_config->exchangeSettings('transactionalExchange');
+
+    $config['exchange'] = array(
+      'name' => $transactionalExchange->name,
+      'type' => $transactionalExchange->type,
+      'passive' => $transactionalExchange->passive,
+      'durable' => $transactionalExchange->durable,
+      'auto_delete' => $transactionalExchange->auto_delete,
+    );
+    foreach ($transactionalExchange->queues->userMailchimpStatusQueue->binding_patterns as $binding_key) {
+      $config['queue'][] = array(
+        'name' => $transactionalExchange->queues->userMailchimpStatusQueue->name,
+        'passive' => $transactionalExchange->queues->userMailchimpStatusQueue->passive,
+        'durable' =>  $transactionalExchange->queues->userMailchimpStatusQueue->durable,
+        'exclusive' =>  $transactionalExchange->queues->userMailchimpStatusQueue->exclusive,
+        'auto_delete' =>  $transactionalExchange->queues->userMailchimpStatusQueue->auto_delete,
+        'bindingKey' => $binding_key,
+      );
+    }
+    $config['routingKey'] = 'user.mailchimp.error';
+    $mbError = new MessageBroker($this->credentials, $config);
 
     // Add extries for each error encountered to the directUserStatusExchange
     foreach ($errors as $errorDetails){
