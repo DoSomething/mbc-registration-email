@@ -13,7 +13,6 @@ date_default_timezone_set('America/New_York');
 // Load up the Composer autoload magic
 require_once __DIR__ . '/vendor/autoload.php';
 use DoSomething\MB_Toolbox\MB_Configuration;
-use DoSomething\MBStatTracker\StatHat;
 
 // Load configuration settings common to the Message Broker system
 // symlinks in the project directory point to the actual location of the files
@@ -72,18 +71,6 @@ foreach ($transactionalExchange->queues->mailchimpCampaignSignupQueue->binding_p
     'bindingKey' => $binding_key,
   );
 }
-foreach ($transactionalExchange->queues->userMailchimpStatusQueue->binding_patterns as $binding_key) {
-  $config['queue'][] = array(
-    'name' => $transactionalExchange->queues->userMailchimpStatusQueue->name,
-    'passive' => $transactionalExchange->queues->userMailchimpStatusQueue->passive,
-    'durable' =>  $transactionalExchange->queues->userMailchimpStatusQueue->durable,
-    'exclusive' =>  $transactionalExchange->queues->userMailchimpStatusQueue->exclusive,
-    'auto_delete' =>  $transactionalExchange->queues->userMailchimpStatusQueue->auto_delete,
-    'bindingKey' => $binding_key,
-  );
-}
-
-
 
 $status = '';
 
