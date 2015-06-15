@@ -113,7 +113,7 @@ class MBC_UserRegistration
       $mlid = !empty($messagePayload['mailchimp_list_id']) ? $messagePayload['mailchimp_list_id'] : false;
 
       // Temp solution to resolve user imaports that don't have the mailchimp_list_id setting in the payload
-      if (!$mlid && (isset($messagePayload['source']) && $messagePayload['source'] == 'herCampus' || $messagePayload['source'] == 'niche' || $messagePayload['source'] == 'att-ichannel')) {
+      if (!$mlid && (isset($messagePayload['source']) && ($messagePayload['source'] == 'herCampus' || $messagePayload['source'] == 'niche' || $messagePayload['source'] == 'att-ichannel'))) {
         $mlid = 'f2fab1dfd4';
       }
 
@@ -220,7 +220,7 @@ class MBC_UserRegistration
 
     $results = '';
     foreach ($campaignSignups as $mlid => $signups) {
-      list($composedSignupList, $mbDeliveryTags) = $this->composeSubscriberSubmission($signups);
+      list($composedSignupList, $mbDeliveryTags) = $this->composeSignupSubmission($signups);
       if (count($composedSignupList) < 1) {
         $results .= 'No new campaign signups accounts to submit to MailChimp list' . $mlid . '.' . PHP_EOL;
         continue;
