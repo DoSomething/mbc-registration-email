@@ -30,6 +30,7 @@ $credentials = array(
 
 $settings = array(
   'mailchimp_apikey' => getenv("MAILCHIMP_APIKEY"),
+  'mailchimp_uk_apikey' => getenv("MAILCHIMP_UK_APIKEY"),
   'stathat_ez_key' => getenv("STATHAT_EZKEY"),
   'use_stathat_tracking' => getenv('USE_STAT_TRACKING'),
 );
