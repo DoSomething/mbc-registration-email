@@ -220,6 +220,7 @@ class MBC_UserRegistration
           'mb_delivery_tag' => $messageDetails->delivery_info['delivery_tag'],
           'mailchimp_group_name' => $messagePayload['mailchimp_group_name'],
           'mailchimp_grouping_id' => $messagePayload['mailchimp_grouping_id'],
+          'application_id' => $messagePayload['application_id'],
         );
 
       }
