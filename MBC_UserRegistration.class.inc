@@ -148,7 +148,7 @@ class MBC_UserRegistration
         // Remove messages that don't qualify for submission to MailChimp
         // - AGG, will be added one week after first vote.
         if ($messagePayload['source'] == 'AGG') {
-          // $this->channel->basic_ack($messageDetails->delivery_info['delivery_tag']);
+          $this->channel->basic_ack($messageDetails->delivery_info['delivery_tag']);
         }
       }
 
