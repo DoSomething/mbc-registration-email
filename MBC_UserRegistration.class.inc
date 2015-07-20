@@ -129,16 +129,19 @@ class MBC_UserRegistration
           $subscriber['uid'] = $messagePayload['uid'];
         }
         if (isset($messagePayload['birthdate_timestamp'])) {
-          $subscriber['birthdate_timestamp'] = $messagePayload['birthdate_timestamp'];
+          $subscriber['birthdate_timestamp'] = (int)$messagePayload['birthdate_timestamp'];
         }
         elseif (isset($messagePayload['birthdate'])) {
-          $subscriber['birthdate_timestamp'] = $messagePayload['birthdate'];
+          $subscriber['birthdate_timestamp'] = (int)$messagePayload['birthdate'];
         }
         if (isset($messagePayload['mobile'])) {
           $subscriber['mobile'] = $messagePayload['mobile'];
         }
         if (isset($messagePayload['source'])) {
           $subscriber['source'] = $messagePayload['source'];
+        }
+        if (isset($messagePayload['application_id'])) {
+          $subscriber['application_id'] = $messagePayload['application_id'];
         }
       }
       else {
@@ -159,13 +162,23 @@ class MBC_UserRegistration
 
     $results = '';
     foreach ($newSubscribers as $mlid => $subscribers) {
+      // Batches of users by MailChimp List ID ($mlid)
+      // Assign MailChimp API Key based on user application_id signup source. Assume each
+      // $mlid batch will have the same application_id value. UK users are submitted to
+      // seperate MailChimp account.
+      if ($subscribers[0]['application_id'] == 'UK') {
+        $mAPIKey = $this->settings['mailchimp_uk_apikey'];
+      }
+      else {
+        $mAPIKey = $this->settings['mailchimp_apikey'];
+      }
       list($composedSubscriberList, $mbDeliveryTags) = $this->composeSubscriberSubmission($subscribers);
       if (count($composedSubscriberList) < 1) {
         $results .= 'No new accounts to submit to MailChimp list' . $mlid . '.' . PHP_EOL;
         continue;
       }
 
-      $results .= $this->submitToMailChimp($mlid, $composedSubscriberList, $mbDeliveryTags);
+      $results .= $this->submitToMailChimp($mAPIKey, $mlid, $composedSubscriberList, $mbDeliveryTags);
       $this->statHat->clearAddedStatNames();
       $this->statHat->addStatName('consumeNewRegistrationsQueue');
       $this->statHat->reportCount($processedCount);
@@ -213,7 +226,7 @@ class MBC_UserRegistration
       else {
         // No group setting, skip entry in batch submission. Send acknowledgment
         // to remove entry from queue
-        $this->channel->basic_ack($messageDetails->delivery_info['delivery_tag']);
+       $this->channel->basic_ack($messageDetails->delivery_info['delivery_tag']);
         echo $messagePayload['email'] . ' skipped, no group_name.',  PHP_EOL;
       }
 
@@ -227,13 +240,23 @@ class MBC_UserRegistration
 
     $results = '';
     foreach ($campaignSignups as $mlid => $signups) {
+      // Batches of users by MailChimp List ID ($mlid)
+      // Assign MailChimp API Key based on user application_id signup source. Assume each
+      // $mlid batch will have the same application_id value. UK users are submitted to
+      // seperate MailChimp account.
+      if ($subscribers[0]['application_id'] == 'UK') {
+        $mAPIKey = $this->settings['mailchimp_uk_apikey'];
+      }
+      else {
+        $mAPIKey = $this->settings['mailchimp_apikey'];
+      }
       list($composedSignupList, $mbDeliveryTags) = $this->composeSignupSubmission($signups);
       if (count($composedSignupList) < 1) {
         $results .= 'No new campaign signups accounts to submit to MailChimp list' . $mlid . '.' . PHP_EOL;
         continue;
       }
 
-      $results .= $this->submitToMailChimp($mlid, $composedSignupList, $mbDeliveryTags);
+      $results .= $this->submitToMailChimp($mAPIKey, $mlid, $composedSignupList, $mbDeliveryTags);
       $this->statHat->clearAddedStatNames();
       $this->statHat->addStatName('consumeMailchimpCampaignSignupQueue');
       $this->statHat->reportCount($messagesProcessed);
@@ -279,7 +302,8 @@ class MBC_UserRegistration
         );
         $mergeVars = array(
           'UID' => isset($newSubscriber['uid']) ? $newSubscriber['uid'] : '',
-          'MMERGE3' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
+          'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
+          'MMERGE3' => (isset($newSubscriber['fname']) && isset($newSubscriber['lname'])) ? $newSubscriber['fname'] . $newSubscriber['lname'] : '',
           'BDAY' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d', $newSubscriber['birthdate_timestamp']) : '',
           'BDAYFULL' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d/Y', $newSubscriber['birthdate_timestamp']) : '',
           'MMERGE7' => isset($newSubscriber['mobile']) ? $newSubscriber['mobile'] : '',
@@ -343,10 +367,8 @@ class MBC_UserRegistration
    *
    * @param string $mlid
    *   The MailChimp list id to connect to.
-   *
-   * @param array $composedBatch
-   *   The list of email address to be submitted to MailChimp
-   *
+   * @param array $mAPIKey
+   *   An array of emails and the MailChimp API key to submit the address to.
    * @param array $mbDeliveryTags
    *   A list of RabbitMQ delivery tags being processed in batch.
    *
@@ -354,9 +376,9 @@ class MBC_UserRegistration
    *   A list of the RabbitMQ queue entry IDs that have been successfully
    *   submitted to MailChimp.
    */
-  private function submitToMailChimp($mlid, $composedBatch = array(), $mbDeliveryTags = array()) {
+  private function submitToMailChimp($mAPIKey, $mlid, $composedBatch = array(), $mbDeliveryTags = array()) {
 
-    $MailChimp = new \Drewm\MailChimp($this->settings['mailchimp_apikey']);
+    $MailChimp = new \Drewm\MailChimp($mAPIKey);
 
     // Debugging
     // $results1 = $MailChimp->call("lists/list", array());
@@ -383,7 +405,7 @@ class MBC_UserRegistration
     $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . PHP_EOL;
     if ($results != 0) {
       if ($results['error_count'] > 0) {
-        $statusMessage = $this->updateUserMailchimpError($results['errors'], $mlid, $composedBatch);
+        $statusMessage = $this->updateUserMailchimpError($results['errors'], $mAPIKey, $mlid, $composedBatch);
         $status .= 'mbc-registration-email - submitToMailChimp(): Success with errors - ' . $statusMessage . PHP_EOL;
       }
       else {
@@ -420,7 +442,8 @@ class MBC_UserRegistration
    *
    * @param array $errors
    *   A list of RabbitMQ delivery tags being processed in batch.
-   *
+   * @param array $mAPIKey
+   *   An array of emails and the MailChimp API key to submit the address to.
    * @param string $mlid
    *   The MailChimp list id to connect to.
    *
@@ -428,7 +451,7 @@ class MBC_UserRegistration
    *  List or email address and their Mailchimp interest group assignments that
    *  were submitted as a batch.
    */
-  private function updateUserMailchimpError($errors, $mlid, $composedBatch) {
+  private function updateUserMailchimpError($errors, $mAPIKey, $mlid, $composedBatch) {
 
     $resubscribes = 0;
     $failedResubscribes = 0;
@@ -465,7 +488,7 @@ class MBC_UserRegistration
       // transaction / user signing up for a campaign is confirmation that
       // they want to resubscribe.
       if ($errorDetails['code'] == 212) {
-        $resubscribeStatus = $this->resubscribeEmail($errorDetails, $mlid, $composedBatch);
+        $resubscribeStatus = $this->resubscribeEmail($errorDetails, $mAPIKey, $mlid, $composedBatch);
         $resubscribeStatus ? $resubscribes++ : $failedResubscribes++;
       }
       else {
@@ -489,10 +512,10 @@ class MBC_UserRegistration
    * @param array $errorDetails
    *   The error details reported when the email address was submitted as a part
    *   of a batch submission.
-   *
    *  @param string $mlid
    *   The MailChimp list id to connect to.
-   *
+   * @param array $mAPIKey
+   *   An array of emails and the MailChimp API key to submit the address to.
    * @param array $composedBatch
    *   The details of the batch data sent to Mailchimp. The interest group
    *   details will be extractacted for the /lists/subscribe submission to
@@ -501,7 +524,7 @@ class MBC_UserRegistration
    * @return string $status
    *   The results of the submission to the UserAPI
    */
-  private function resubscribeEmail($errorDetails, $mlid, $composedBatch) {
+  private function resubscribeEmail($errorDetails, $mAPIKey, $mlid, $composedBatch) {
 
     // Lookup the group assignment details from $composedBatch by the email
     // address in $errorDetails
@@ -513,7 +536,7 @@ class MBC_UserRegistration
     }
 
     // Submit subscription to Mailchimp
-    $mc = new \Drewm\MailChimp($this->settings['mailchimp_apikey']);
+    $mc = new \Drewm\MailChimp($mAPIKey);
 
     $results = $mc->call("lists/subscribe", array(
       'id' => $mlid,
