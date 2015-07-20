@@ -244,7 +244,7 @@ class MBC_UserRegistration
       // Assign MailChimp API Key based on user application_id signup source. Assume each
       // $mlid batch will have the same application_id value. UK users are submitted to
       // seperate MailChimp account.
-      if ($subscribers[0]['application_id'] == 'UK') {
+      if ($signups[0]['application_id'] == 'UK') {
         $mAPIKey = $this->settings['mailchimp_uk_apikey'];
       }
       else {
@@ -404,14 +404,21 @@ class MBC_UserRegistration
 
     $status = '------- ' . date('D M j G:i:s:u T Y') . ' -------' . PHP_EOL;
     if ($results != 0) {
-      if ($results['error_count'] > 0) {
+      if (isset($results['error_count']) && $results['error_count'] > 0) {
         $statusMessage = $this->updateUserMailchimpError($results['errors'], $mAPIKey, $mlid, $composedBatch);
         $status .= 'mbc-registration-email - submitToMailChimp(): Success with errors - ' . $statusMessage . PHP_EOL;
       }
       else {
         $status .= 'mbc-registration-email - submitToMailChimp(): Success!' . PHP_EOL;
       }
-      $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated.' . PHP_EOL;
+
+      if (!isset($results['add_count'])) {
+        $results['add_count'] = 0;
+      }
+      if (!isset($results['update_count'])) {
+        $results['update_count'] = 0;
+      }
+      $status .= ' [x] ' . $results['add_count'] . ' email addresses added / ' . $results['update_count'] . ' updated to ' . $mAPIKey . '.' . PHP_EOL;
 
       $this->statHat->clearAddedStatNames();
       $this->statHat->addStatName('submitToMailChimp-batch-subscribe add_count');
