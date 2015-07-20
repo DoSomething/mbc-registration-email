@@ -129,10 +129,10 @@ class MBC_UserRegistration
           $subscriber['uid'] = $messagePayload['uid'];
         }
         if (isset($messagePayload['birthdate_timestamp'])) {
-          $subscriber['birthdate_timestamp'] = $messagePayload['birthdate_timestamp'];
+          $subscriber['birthdate_timestamp'] = (int)$messagePayload['birthdate_timestamp'];
         }
         elseif (isset($messagePayload['birthdate'])) {
-          $subscriber['birthdate_timestamp'] = $messagePayload['birthdate'];
+          $subscriber['birthdate_timestamp'] = (int)$messagePayload['birthdate'];
         }
         if (isset($messagePayload['mobile'])) {
           $subscriber['mobile'] = $messagePayload['mobile'];
@@ -302,7 +302,8 @@ class MBC_UserRegistration
         );
         $mergeVars = array(
           'UID' => isset($newSubscriber['uid']) ? $newSubscriber['uid'] : '',
-          'MMERGE3' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
+          'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
+          'MMERGE3' => (isset($newSubscriber['fname']) && isset($newSubscriber['lname'])) ? $newSubscriber['fname'] . $newSubscriber['lname'] : '',
           'BDAY' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d', $newSubscriber['birthdate_timestamp']) : '',
           'BDAYFULL' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d/Y', $newSubscriber['birthdate_timestamp']) : '',
           'MMERGE7' => isset($newSubscriber['mobile']) ? $newSubscriber['mobile'] : '',
