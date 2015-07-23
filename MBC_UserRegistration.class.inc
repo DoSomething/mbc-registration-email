@@ -288,6 +288,9 @@ class MBC_UserRegistration
           isset($newSubscriber['birthdate_timestamp'])  && $newSubscriber['birthdate_timestamp'] > (time() - (60 * 60 * 24 * 365 * 1))) {
         unset($newSubscriber['birthdate_timestamp']);
       }
+      if (isset($newSubscriber['birthdate']) && is_int($newSubscriber['birthdate']) && $newSubscriber['birthdate'] < (time() - (60 * 60 * 24 * 365 * 1))) {
+        $newSubscriber['birthdate_timestamp'] = $newSubscriber['birthdate'];
+      }
       if (isset($newSubscriber['mobile']) && !strlen($newSubscriber['mobile']) < 8) {
         unset($newSubscriber['mobile']);
       }
@@ -301,14 +304,25 @@ class MBC_UserRegistration
             'email' => $newSubscriber['email']
           ),
         );
-        $mergeVars = array(
-          'UID' => isset($newSubscriber['uid']) ? $newSubscriber['uid'] : '',
-          'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
-          'MMERGE3' => (isset($newSubscriber['fname']) && isset($newSubscriber['lname'])) ? $newSubscriber['fname'] . $newSubscriber['lname'] : '',
-          'BDAY' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d', $newSubscriber['birthdate_timestamp']) : '',
-          'BDAYFULL' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d/Y', $newSubscriber['birthdate_timestamp']) : '',
-          'MMERGE7' => isset($newSubscriber['mobile']) ? $newSubscriber['mobile'] : '',
-        );
+        // support different merge_vars for US vs UK
+        if ($newSubscriber['application_id'] == 'UK') {
+          $mergeVars = array(
+            'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
+            'LNAME' => (isset($newSubscriber['fname']) && isset($newSubscriber['lname'])) ? $newSubscriber['fname'] . $newSubscriber['lname'] : '',
+            'DOB' => isset($newSubscriber['birthdate_timestamp']) ? date('d/m/Y', $newSubscriber['birthdate_timestamp']) : '',
+          );
+        }
+        else {
+          $mergeVars = array(
+            'UID' => isset($newSubscriber['uid']) ? $newSubscriber['uid'] : '',
+            'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
+            'MMERGE3' => (isset($newSubscriber['fname']) && isset($newSubscriber['lname'])) ? $newSubscriber['fname'] . $newSubscriber['lname'] : '',
+            'BDAY' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d', $newSubscriber['birthdate_timestamp']) : '',
+            'BDAYFULL' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d/Y', $newSubscriber['birthdate_timestamp']) : '',
+            'MMERGE7' => isset($newSubscriber['mobile']) ? $newSubscriber['mobile'] : '',
+          );
+        }
+
         if (isset($newSubscriber['source'])) {
           $mergeVars['groupings'] = array(
             0 => array(
