@@ -110,6 +110,11 @@ class MBC_UserRegistration
       $messageDetails = $this->channel->basic_get($this->config['queue'][0]['name']);
       $messagePayload = unserialize($messageDetails->body);
 
+      // Stop processing if application_id value not set
+      if (!isset($messagePayload['application_id'])) {
+        exit;
+      }
+
       $mlid = !empty($messagePayload['mailchimp_list_id']) ? $messagePayload['mailchimp_list_id'] : false;
 
       // Temp solution to resolve user imaports that don't have the mailchimp_list_id setting in the payload
@@ -166,7 +171,7 @@ class MBC_UserRegistration
       // Assign MailChimp API Key based on user application_id signup source. Assume each
       // $mlid batch will have the same application_id value. UK users are submitted to
       // seperate MailChimp account.
-      if ($subscribers[0]['application_id'] == 'UK') {
+      if (isset($subscribers[0]['application_id']) && $subscribers[0]['application_id'] == 'UK') {
         $mAPIKey = $this->settings['mailchimp_uk_apikey'];
       }
       else {
@@ -283,7 +288,7 @@ class MBC_UserRegistration
     $composedSubscriberList = array();
     foreach ($newSubscribers as $newSubscriberCount => $newSubscriber) {
 
-      // Remove invalid values
+      // Remove invalid values - not a timestamp or set to the user being less than a year old
       if (isset($newSubscriber['birthdate_timestamp']) && !is_int($newSubscriber['birthdate_timestamp']) ||
           isset($newSubscriber['birthdate_timestamp'])  && $newSubscriber['birthdate_timestamp'] > (time() - (60 * 60 * 24 * 365 * 1))) {
         unset($newSubscriber['birthdate_timestamp']);
@@ -305,10 +310,10 @@ class MBC_UserRegistration
           ),
         );
         // support different merge_vars for US vs UK
-        if ($newSubscriber['application_id'] == 'UK') {
+        if (isset($newSubscriber['application_id']) && $newSubscriber['application_id'] == 'UK') {
           $mergeVars = array(
             'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
-            'LNAME' => (isset($newSubscriber['fname']) && isset($newSubscriber['lname'])) ? $newSubscriber['fname'] . $newSubscriber['lname'] : '',
+            'LNAME' => isset($newSubscriber['lname']) ? $newSubscriber['lname'] : '',
             'DOB' => isset($newSubscriber['birthdate_timestamp']) ? date('d/m/Y', $newSubscriber['birthdate_timestamp']) : '',
           );
         }
