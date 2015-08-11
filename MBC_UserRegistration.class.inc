@@ -110,11 +110,6 @@ class MBC_UserRegistration
       $messageDetails = $this->channel->basic_get($this->config['queue'][0]['name']);
       $messagePayload = unserialize($messageDetails->body);
 
-      // Stop processing if application_id value not set
-      if (!isset($messagePayload['application_id'])) {
-        exit;
-      }
-
       $mlid = !empty($messagePayload['mailchimp_list_id']) ? $messagePayload['mailchimp_list_id'] : false;
 
       // Temp solution to resolve user imaports that don't have the mailchimp_list_id setting in the payload
@@ -291,7 +286,7 @@ class MBC_UserRegistration
       if (isset($newSubscriber['birthdate']) && is_int($newSubscriber['birthdate']) && $newSubscriber['birthdate'] < (time() - (60 * 60 * 24 * 365 * 1))) {
         $newSubscriber['birthdate_timestamp'] = $newSubscriber['birthdate'];
       }
-      if (isset($newSubscriber['mobile']) && !strlen($newSubscriber['mobile']) < 8) {
+      if (isset($newSubscriber['mobile']) && strlen($newSubscriber['mobile']) < 8) {
         unset($newSubscriber['mobile']);
       }
 
