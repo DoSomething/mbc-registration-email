@@ -307,6 +307,10 @@ class MBC_UserRegistration
             'MERGE3' => isset($newSubscriber['birthdate_timestamp']) ? date('d/m/Y', $newSubscriber['birthdate_timestamp']) : '',
           );
         }
+        // Don't add Canadian users to MailChimp
+        elseif (isset($newSubscriber['application_id']) && $newSubscriber['application_id'] == 'CA') {
+          break;
+        }
         else {
           $mergeVars = array(
             'UID' => isset($newSubscriber['uid']) ? $newSubscriber['uid'] : '',
