@@ -288,11 +288,6 @@ class MBC_UserRegistration
     $composedSubscriberList = array();
     foreach ($newSubscribers as $newSubscriberCount => $newSubscriber) {
 
-      // Remove invalid values - not a timestamp or set to the user being less than a year old
-      if (isset($newSubscriber['birthdate_timestamp']) && !is_int($newSubscriber['birthdate_timestamp']) ||
-          isset($newSubscriber['birthdate_timestamp'])  && $newSubscriber['birthdate_timestamp'] > (time() - (60 * 60 * 24 * 365 * 1))) {
-        unset($newSubscriber['birthdate_timestamp']);
-      }
       if (isset($newSubscriber['birthdate']) && is_int($newSubscriber['birthdate']) && $newSubscriber['birthdate'] < (time() - (60 * 60 * 24 * 365 * 1))) {
         $newSubscriber['birthdate_timestamp'] = $newSubscriber['birthdate'];
       }
@@ -314,7 +309,7 @@ class MBC_UserRegistration
           $mergeVars = array(
             'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
             'LNAME' => isset($newSubscriber['lname']) ? $newSubscriber['lname'] : '',
-            'DOB' => isset($newSubscriber['birthdate_timestamp']) ? date('d/m/Y', $newSubscriber['birthdate_timestamp']) : '',
+            'MERGE3' => isset($newSubscriber['birthdate_timestamp']) ? date('d/m/Y', $newSubscriber['birthdate_timestamp']) : '',
           );
         }
         else {
