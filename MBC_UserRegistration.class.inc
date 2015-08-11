@@ -290,6 +290,30 @@ class MBC_UserRegistration
         unset($newSubscriber['mobile']);
       }
 
+      // support different merge_vars for US vs UK
+      if (isset($newSubscriber['application_id']) && $newSubscriber['application_id'] == 'UK') {
+        $mergeVars = array(
+          'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
+          'LNAME' => isset($newSubscriber['lname']) ? $newSubscriber['lname'] : '',
+          'MERGE3' => isset($newSubscriber['birthdate_timestamp']) ? date('d/m/Y', $newSubscriber['birthdate_timestamp']) : '',
+        );
+      }
+      // Don't add Canadian users to MailChimp
+      elseif (isset($newSubscriber['application_id']) && $newSubscriber['application_id'] == 'CA') {
+        $this->channel->basic_ack($newSubscriber['mb_delivery_tag']);
+        break;
+      }
+      else {
+        $mergeVars = array(
+          'UID' => isset($newSubscriber['uid']) ? $newSubscriber['uid'] : '',
+          'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
+          'MMERGE3' => (isset($newSubscriber['fname']) && isset($newSubscriber['lname'])) ? $newSubscriber['fname'] . $newSubscriber['lname'] : '',
+          'BDAY' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d', $newSubscriber['birthdate_timestamp']) : '',
+          'BDAYFULL' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d/Y', $newSubscriber['birthdate_timestamp']) : '',
+          'MMERGE7' => isset($newSubscriber['mobile']) ? $newSubscriber['mobile'] : '',
+        );
+      }
+
       // Dont add address of users under 13
       if (!isset($newSubscriber['birthdate_timestamp']) ||
           (isset($newSubscriber['birthdate_timestamp']) &&
@@ -299,28 +323,6 @@ class MBC_UserRegistration
             'email' => $newSubscriber['email']
           ),
         );
-        // support different merge_vars for US vs UK
-        if (isset($newSubscriber['application_id']) && $newSubscriber['application_id'] == 'UK') {
-          $mergeVars = array(
-            'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
-            'LNAME' => isset($newSubscriber['lname']) ? $newSubscriber['lname'] : '',
-            'MERGE3' => isset($newSubscriber['birthdate_timestamp']) ? date('d/m/Y', $newSubscriber['birthdate_timestamp']) : '',
-          );
-        }
-        // Don't add Canadian users to MailChimp
-        elseif (isset($newSubscriber['application_id']) && $newSubscriber['application_id'] == 'CA') {
-          break;
-        }
-        else {
-          $mergeVars = array(
-            'UID' => isset($newSubscriber['uid']) ? $newSubscriber['uid'] : '',
-            'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
-            'MMERGE3' => (isset($newSubscriber['fname']) && isset($newSubscriber['lname'])) ? $newSubscriber['fname'] . $newSubscriber['lname'] : '',
-            'BDAY' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d', $newSubscriber['birthdate_timestamp']) : '',
-            'BDAYFULL' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d/Y', $newSubscriber['birthdate_timestamp']) : '',
-            'MMERGE7' => isset($newSubscriber['mobile']) ? $newSubscriber['mobile'] : '',
-          );
-        }
 
         if (isset($newSubscriber['source'])) {
           $mergeVars['groupings'] = array(
