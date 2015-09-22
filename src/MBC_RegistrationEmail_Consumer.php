@@ -1,4 +1,7 @@
 <?php
+/**
+ * MBC_RegistrationEmail_Consumer: Class to manage consuming the 
+ */
 
 use DoSomething\MB_Toolbox\MB_Configuration;
 use DoSomething\MBStatTracker\StatHat;
@@ -7,7 +10,7 @@ use DoSomething\MBStatTracker\StatHat;
  * MBC_UserRegistration class - functionality related to the Message Broker
  * consumer mbc-registration-email.
  */
-class MBC_UserRegistration
+class MBC_RegistrationEmail_Consumer
 {
 
   /**
