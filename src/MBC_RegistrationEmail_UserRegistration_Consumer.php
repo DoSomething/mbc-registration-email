@@ -76,6 +76,38 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    */
   protected function canProcess() {
 
+    if (!(isset($this->message['email']))) {
+      echo '- canProcess(), email not set.', PHP_EOL;
+      return FALSE;
+    }
+
+   if (filter_var($this->message['email'], FILTER_VALIDATE_EMAIL) === false) {
+      echo '- canProcess(), failed FILTER_VALIDATE_EMAIL: ' . $this->message['email'], PHP_EOL;
+      return FALSE;
+    }
+    else {
+      $this->message['email'] = filter_var($this->message['email'], FILTER_VALIDATE_EMAIL);
+    }
+
+    if (!(isset($this->message['activity']))) {
+      echo '- canProcess(), activity not set.', PHP_EOL;
+      return FALSE;
+    }
+    if (isset($this->message['activity']) && $this->message['activity'] != 'user_register') {
+      echo '- canProcess(), activity: ' . $this->message['activity'] . ' not "user_register", skipping message.', PHP_EOL;
+      return FALSE;
+    }
+
+    if (!(isset($this->message['mailchimp_list_id']))) {
+      echo '- canProcess(), mailchimp_list_id not set.', PHP_EOL;
+      return FALSE;
+    }
+
+    if (!(isset($this->message['email_template']))) {
+      echo '- canProcess(), email_template not set, unable to determine user country of origin.', PHP_EOL;
+      return FALSE;
+    }
+
     return TRUE;
   }
 
@@ -86,6 +118,8 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    *   The message to process based on what was collected from the queue being processed.
    */
   protected function setter($message) {
+
+    // Add email and related details grouped by MailChimp key
 
   }
 
