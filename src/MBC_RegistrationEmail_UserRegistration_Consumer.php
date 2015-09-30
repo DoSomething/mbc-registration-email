@@ -18,9 +18,38 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 {
 
   /**
-   * The number of queue entries to process in each session
+   * The number of email addresses to send in a batch submission to MailChimp.
+   * @var array $batchSize
    */
-  const BATCH_SIZE = 100;
+  private $batchSize;
+
+  /**
+   * MailChimp API keys indexed by supported country codes.
+   * @var array $mcAPIkeys
+   */
+  protected $mcAPIkeys;
+
+  /**
+   * One submission to be complited as part of batch submission to MailChimp.
+   */
+  protected $submission = [];
+
+  /**
+   * Submissions to be sent to MailChimp, indexed by MailChimp API and email address.
+   * @var array $waitingSubmissions
+   */
+  protected $waitingSubmissions = [];
+
+  /**
+   *
+   */
+  public function __construct($batchSize) {
+
+    parent::__construct();
+    $this->batchSize = $batchSize;
+    $this->mcAPIkeys = $this->mbConfig->getProperty('mailchimpAPIkeys');
+    $this->mbcURMailChimp = $this->mbConfig->getProperty('mbcURMailChimp');
+  }
 
   /**
    * Callback for messages arriving in the UserRegistrationQueue.
@@ -64,6 +93,14 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     $queueMessages = parent::queueStatus('transactionalQueue');
     echo '- queueMessages ready: ' . $queueMessages['ready'], PHP_EOL;
     echo '- queueMessages unacked: ' . $queueMessages['unacked'], PHP_EOL;
+
+    if (count($this->waitingSubmissions) >= $this->batchSize) {
+      $composedBatch = '';
+      $this->mbcURMailChimp->submitBatchToMailChimp($composedBatch);
+
+      echo '- unset $this->waitingSubmissions: ' . count($this->waitingSubmissions), PHP_EOL . PHP_EOL;
+      unset($this->waitingSubmissions);
+    }
 
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_CampaignSignup_Consumer->consumeUserRegistrationQueue() END -------', PHP_EOL . PHP_EOL;
 
@@ -119,15 +156,49 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    */
   protected function setter($message) {
 
-    // Add email and related details grouped by MailChimp key
+    $this->submission = [];
+    $this->submission['email'] = $message['email'];
+
+    if (isset($message['merge_vars']['FNAME'])) {
+      $this->submission['fname'] = $message['merge_vars']['FNAME'];
+    }
+    if (isset($message['uid'])) {
+      $this->submission['uid'] = $message['uid'];
+    }
+    if (isset($message['birthdate_timestamp'])) {
+      $this->submission['birthdate_timestamp'] = (int)$message['birthdate_timestamp'];
+    }
+    elseif (isset($message['birthdate'])) {
+      $this->submission['birthdate_timestamp'] = (int)$message['birthdate'];
+    }
+    if (isset($message['mobile'])) {
+      $this->submission['mobile'] = $message['mobile'];
+    }
+    if (isset($message['source'])) {
+      $this->submission['source'] = $message['source'];
+    }
 
   }
 
   /**
-   * process(): Send composed settings to Mandrill to trigger transactional email message being sent.
+   * process(): Compose settings for submission to MailChimp to create user record.
    */
   protected function process() {
 
+    if (isset($message['application_id']) && $message['application_id'] == 'US') {
+      $templateBits = explode('-', $message['email_template']);
+      $country = $templateBits[count($templateBits) - 1];
+      if ($country != NULL && $country != '') {
+        $mcAPIkey = $this->mcAPIkeys['country'][$country];
+      }
+      else {
+        throw new Exception('Unable to define MailChimp API key - country: ' . $country);
+      }
+    }
+
+    // Add email and related details grouped by MailChimp key
+    $this->waitingSubmissions[$mcAPIkey][] = $this->submission;
+    unset($this->submission);
   }
 
   /**
