@@ -15,6 +15,7 @@
  */
 use DoSomething\MB_Toolbox\MB_Configuration;
 use DoSomething\MB_Toolbox\MB_RabbitMQManagementAPI;
+use DoSomething\MB_Toolbox\MB_MailChimp;
 use DoSomething\StatHat\Client as StatHat;
 
 // Load configuration settings common to the Message Broker system
@@ -50,7 +51,7 @@ $rabbitCredentials = $mbConfig->getProperty('rabbit_credentials');
 $messageBrokerConfig = $mbConfig->getProperty('messageBroker_config');
 $mbConfig->setProperty('messageBroker', new MessageBroker($rabbitCredentials, $messageBrokerConfig));
 
-$mbConfig->setProperty('mailchimpAPI', [
+$mbConfig->setProperty('mailchimpAPIkeys', [
   'country' => [
     'global' => getenv("MAILCHIMP_APIKEY"),
     'us'     => getenv("MAILCHIMP_APIKEY"),
@@ -59,3 +60,5 @@ $mbConfig->setProperty('mailchimpAPI', [
     'br'     => getenv("MAILCHIMP_BR_APIKEY"),
   ]]
 );
+
+$mbConfig->setProperty('mbcURMailChimp', new MB_MailChimp());
