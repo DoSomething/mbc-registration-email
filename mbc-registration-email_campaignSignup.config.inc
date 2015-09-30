@@ -50,7 +50,7 @@ $rabbitCredentials = $mbConfig->getProperty('rabbit_credentials');
 $messageBrokerConfig = $mbConfig->getProperty('messageBroker_config');
 $mbConfig->setProperty('messageBroker', new MessageBroker($rabbitCredentials, $messageBrokerConfig));
 
-$mbConfig->setProperty('mailchimpAPI', [
+$mbConfig->setProperty('mailchimpAPIkeys', [
   'country' => [
     'global' => getenv("MAILCHIMP_APIKEY"),
     'us'     => getenv("MAILCHIMP_APIKEY"),
