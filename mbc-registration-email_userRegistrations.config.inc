@@ -61,4 +61,7 @@ $mbConfig->setProperty('mailchimpAPIkeys', [
   ]]
 );
 
-$mbConfig->setProperty('mbcURMailChimp', new MB_MailChimp());
+$mailchimpAPIKeys = $mbConfig->getProperty('mailchimpAPIkeys');
+foreach ($mailchimpAPIKeys['country'] as $country => $key) {
+  $mbConfig->setProperty('mbcURMailChimp_' . $country, new MB_MailChimp($key));
+}
