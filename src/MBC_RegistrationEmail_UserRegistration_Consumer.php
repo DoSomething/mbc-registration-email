@@ -207,8 +207,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   protected function process() {
 
     if (isset($message['application_id']) && $message['application_id'] == 'US') {
-      $templateBits = explode('-', $message['email_template']);
-      $country = $templateBits[count($templateBits) - 1];
+
       if ($country != NULL && $country != '') {
         $mcAPIkey = $this->mcAPIkeys['country'][$country];
       }
@@ -223,17 +222,39 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   }
 
   /**
+   * countryFromTemplateName(): Extract country code from email template string. The last characters in string are country specific.
    *
+   * @param string $emailTemplate
+   *   The name of the template defined in the message transactional request.
+   *
+   * @return string $country
+   *   A two letter country code.
    */
   protected function countryFromTemplateName($emailTemplate) {
+
+    $templateBits = explode('-', $emailTemplate);
+    $country = $templateBits[count($templateBits) - 1];
 
     return $country;
   }
 
   /**
+   * Lookup the Mailchimp API key code by country.
    *
+   * @param string $userCountry
+   *   The country code of the user
+   *
+   * @return string $mailchimpAPIKey
+   *   The MailChimp API key based on the users country. Default to global key if setting not found.
    */
   protected function getMailchimpAPIKey($userCountry) {
+
+    if (isset($this->mcAPIkeys['country'][$userCountry])) {
+      $mailchimpAPIKey = $this->mcAPIkeys['country'][$userCountry];
+    }
+    else {
+      $mailchimpAPIKey = $this->mcAPIkeys['country']['global'];
+    }
 
     return $mailchimpAPIKey;
   }
