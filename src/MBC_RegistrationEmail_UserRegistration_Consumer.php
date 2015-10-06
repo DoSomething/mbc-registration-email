@@ -141,8 +141,16 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     }
 
     if (!(isset($this->message['email_template']))) {
-      echo '- canProcess(), email_template not set, unable to determine user country of origin.', PHP_EOL;
+      echo '- canProcess(), email_template not set.', PHP_EOL;
       return FALSE;
+    }
+
+    if (!(isset($this->message['user_language']))) {
+      echo '- canProcess(), WARNING: user_language not set.', PHP_EOL;
+    }
+
+    if (!(isset($this->message['user_country']))) {
+      echo '- canProcess(), WARNING: user_country not set.', PHP_EOL;
     }
 
     return TRUE;
@@ -158,6 +166,20 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     $this->submission = [];
     $this->submission['email'] = $message['email'];
+
+    // Extract user_country if not set or default to "US".
+    if (!(isset($message['user_country'])) && isset($message['email_template'])) {
+      $message['user_country'] = $this->countryFromTemplateName($message['email_template']);
+    }
+    else {
+      $message['user_country'] = 'US';
+    }
+    $this->submission['mailchimp_API_key'] = $this->getMailchimpAPIKey($message['user_country']);
+    $this->submission['mailchimp_list_id'] = $message['mailchimp_list_id'];
+
+    if (isset($message['user_language'])) {
+      $this->submission['user_language'] = $message['user_language'];
+    }
 
     if (isset($message['merge_vars']['FNAME'])) {
       $this->submission['fname'] = $message['merge_vars']['FNAME'];
@@ -177,7 +199,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     if (isset($message['source'])) {
       $this->submission['source'] = $message['source'];
     }
-
   }
 
   /**
@@ -199,6 +220,22 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     // Add email and related details grouped by MailChimp key
     $this->waitingSubmissions[$mcAPIkey][] = $this->submission;
     unset($this->submission);
+  }
+
+  /**
+   *
+   */
+  protected function countryFromTemplateName($emailTemplate) {
+
+    return $country;
+  }
+
+  /**
+   *
+   */
+  protected function getMailchimpAPIKey($userCountry) {
+
+    return $mailchimpAPIKey;
   }
 
   /**
