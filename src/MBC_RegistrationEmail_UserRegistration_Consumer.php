@@ -24,10 +24,10 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   private $batchSize;
 
   /**
-   * MailChimp API keys indexed by supported country codes.
-   * @var array $mcAPIkeys
+   * MailChimp objects indexed by supported country codes.
+   * @var array $mbcURMailChimp
    */
-  protected $mcAPIkeys;
+  protected $mbcURMailChimp;
 
   /**
    * One submission to be complited as part of batch submission to MailChimp.
@@ -47,8 +47,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     parent::__construct();
     $this->batchSize = $batchSize;
-    $this->mcAPIkeys = $this->mbConfig->getProperty('mailchimpAPIkeys');
-    $this->mbcURMailChimp = $this->mbConfig->getProperty('mbcURMailChimp');
+    $this->mbcURMailChimp = $this->mbConfig->getProperty('mbcURMailChimp_Objects');
   }
 
   /**
@@ -184,10 +183,9 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     if (!(isset($message['user_country'])) && isset($message['email_template'])) {
       $message['user_country'] = $this->countryFromTemplateName($message['email_template']);
     }
-    else {
+    elseif (!(isset($message['user_country']))) {
       $message['user_country'] = 'US';
     }
-    $this->submission['mailchimp_API_key'] = $this->getMailchimpAPIKey($message['user_country']);
     $this->submission['mailchimp_list_id'] = $message['mailchimp_list_id'];
 
     if (isset($message['user_language'])) {
@@ -249,26 +247,5 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     $country = $templateBits[count($templateBits) - 1];
 
     return $country;
-  }
-
-  /**
-   * Lookup the Mailchimp API key code by country.
-   *
-   * @param string $userCountry
-   *   The country code of the user
-   *
-   * @return string $mailchimpAPIKey
-   *   The MailChimp API key based on the users country. Default to global key if setting not found.
-   */
-  protected function getMailchimpAPIKey($userCountry) {
-
-    if (isset($this->mcAPIkeys['country'][$userCountry])) {
-      $mailchimpAPIKey = $this->mcAPIkeys['country'][$userCountry];
-    }
-    else {
-      $mailchimpAPIKey = $this->mcAPIkeys['country']['global'];
-    }
-
-    return $mailchimpAPIKey;
   }
 }
