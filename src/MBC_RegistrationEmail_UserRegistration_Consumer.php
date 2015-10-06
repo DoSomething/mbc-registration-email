@@ -96,10 +96,10 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     if (count($this->waitingSubmissions) >= $this->batchSize) {
 
       // Group by Mailchimp account
-      foreach ($this->waitingSubmissions as $mbAPIkey => $submissions) {
+      foreach ($this->waitingSubmissions as $country => $submissions) {
 
-        $composedBatch = $this->mbcURMailChimp->composeSubscriberSubmission($this->waitingSubmissions);
-        $results = $this->mbcURMailChimp->submitBatchToMailChimp($composedBatch);
+        $composedBatch = $this->mbcURMailChimp->composeSubscriberSubmission($submissions);
+        $results = $this->mbcURMailChimp[$country]->submitBatchToMailChimp($composedBatch);
         if (count($results['error']) > 0) {
           $this->resubscribeToMailChimp($results['error']);
         }
@@ -217,18 +217,9 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    */
   protected function process() {
 
-    if (isset($message['application_id']) && $message['application_id'] == 'US') {
-
-      if ($country != NULL && $country != '') {
-        $mcAPIkey = $this->mcAPIkeys['country'][$country];
-      }
-      else {
-        throw new Exception('Unable to define MailChimp API key - country: ' . $country);
-      }
-    }
-
-    // Add email and related details grouped by MailChimp key
-    $this->waitingSubmissions[$mcAPIkey][] = $this->submission;
+    // Add email and related details grouped by country. The country defines which MailChimp
+    // object and related account to submit to.
+    $this->waitingSubmissions[$this->submission['country']][] = $this->submission;
     unset($this->submission);
   }
 
