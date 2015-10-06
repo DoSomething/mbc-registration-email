@@ -95,8 +95,16 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     echo '- queueMessages unacked: ' . $queueMessages['unacked'], PHP_EOL;
 
     if (count($this->waitingSubmissions) >= $this->batchSize) {
-      $composedBatch = '';
-      $this->mbcURMailChimp->submitBatchToMailChimp($composedBatch);
+
+      // Group by Mailchimp account
+      foreach ($this->waitingSubmissions as $mbAPIkey => $submissions) {
+
+        $composedBatch = $this->mbcURMailChimp->composeSubscriberSubmission($this->waitingSubmissions);
+        $results = $this->mbcURMailChimp->submitBatchToMailChimp($composedBatch);
+        if (count($results['error']) > 0) {
+          $this->resubscribeToMailChimp($results['error']);
+        }
+      }
 
       echo '- unset $this->waitingSubmissions: ' . count($this->waitingSubmissions), PHP_EOL . PHP_EOL;
       unset($this->waitingSubmissions);
@@ -142,6 +150,11 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     if (!(isset($this->message['email_template']))) {
       echo '- canProcess(), email_template not set.', PHP_EOL;
+      return FALSE;
+    }
+
+    if (isset($this->message['birthdate_timestamp']) && ($this->message['birthdate_timestamp'] < time() - (60 * 60 * 24 * 365 * 13))) {
+      echo '- canProcess(), user user 13 years old.', PHP_EOL;
       return FALSE;
     }
 
@@ -258,83 +271,4 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     return $mailchimpAPIKey;
   }
-
-  /**
-   * Format email list to meet MailChimp API requirements for batchSubscribe
-   *
-   * @param array $newSubscribers
-   *   The list of email address to be formatted
-   *
-   * @return array
-   *   Array of email addresses formatted to meet MailChimp API requirements.
-   */
-  private function composeSubscriberSubmission($newSubscribers = array()) {
-
-    $composedSubscriberList = array();
-    $mbDeliveryTags = array();
-
-    $composedSubscriberList = array();
-    foreach ($newSubscribers as $newSubscriberCount => $newSubscriber) {
-
-      if (isset($newSubscriber['birthdate']) && is_int($newSubscriber['birthdate']) && $newSubscriber['birthdate'] < (time() - (60 * 60 * 24 * 365 * 1))) {
-        $newSubscriber['birthdate_timestamp'] = $newSubscriber['birthdate'];
-      }
-      if (isset($newSubscriber['mobile']) && strlen($newSubscriber['mobile']) < 8) {
-        unset($newSubscriber['mobile']);
-      }
-
-      // support different merge_vars for US vs UK
-      if (isset($newSubscriber['application_id']) && $newSubscriber['application_id'] == 'UK') {
-        $mergeVars = array(
-          'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
-          'LNAME' => isset($newSubscriber['lname']) ? $newSubscriber['lname'] : '',
-          'MERGE3' => isset($newSubscriber['birthdate_timestamp']) ? date('d/m/Y', $newSubscriber['birthdate_timestamp']) : '',
-        );
-      }
-      // Don't add Canadian users to MailChimp
-      elseif (isset($newSubscriber['application_id']) && $newSubscriber['application_id'] == 'CA') {
-        $this->channel->basic_ack($newSubscriber['mb_delivery_tag']);
-        break;
-      }
-      else {
-        $mergeVars = array(
-          'UID' => isset($newSubscriber['uid']) ? $newSubscriber['uid'] : '',
-          'FNAME' => isset($newSubscriber['fname']) ? $newSubscriber['fname'] : '',
-          'MMERGE3' => (isset($newSubscriber['fname']) && isset($newSubscriber['lname'])) ? $newSubscriber['fname'] . $newSubscriber['lname'] : '',
-          'BDAY' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d', $newSubscriber['birthdate_timestamp']) : '',
-          'BDAYFULL' => isset($newSubscriber['birthdate_timestamp']) ? date('m/d/Y', $newSubscriber['birthdate_timestamp']) : '',
-          'MMERGE7' => isset($newSubscriber['mobile']) ? $newSubscriber['mobile'] : '',
-        );
-      }
-
-      // Dont add address of users under 13
-      if (!isset($newSubscriber['birthdate_timestamp']) ||
-          (isset($newSubscriber['birthdate_timestamp']) &&
-          ($newSubscriber['birthdate_timestamp'] < time() - (60 * 60 * 24 * 365 * 13)))) {
-        $composedSubscriberList[$newSubscriberCount] = array(
-          'email' => array(
-            'email' => $newSubscriber['email']
-          ),
-        );
-
-        if (isset($newSubscriber['source'])) {
-          $mergeVars['groupings'] = array(
-            0 => array(
-              'id' => 10657,  // DoSomething Memebers -> Import Source
-              'groups' => array($newSubscriber['source'])
-            ),
-          );
-        }
-        $composedSubscriberList[$newSubscriberCount]['merge_vars'] = $mergeVars;
-
-        $mbDeliveryTags[$newSubscriber['email']] = $newSubscriber['mb_delivery_tag'];
-      }
-      else {
-        $this->channel->basic_ack($newSubscriber['mb_delivery_tag']);
-      }
-    }
-
-    return array($composedSubscriberList, $mbDeliveryTags);
-  }
-
 }
