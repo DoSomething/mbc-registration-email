@@ -51,6 +51,14 @@ $rabbitCredentials = $mbConfig->getProperty('rabbit_credentials');
 $messageBrokerConfig = $mbConfig->getProperty('messageBroker_config');
 $mbConfig->setProperty('messageBroker', new MessageBroker($rabbitCredentials, $messageBrokerConfig));
 
+$mbConfig->setProperty('mbRabbitMQManagementAPI', new MB_RabbitMQManagementAPI([
+  'domain' => getenv("MB_RABBITMQ_MANAGEMENT_API_HOST"),
+  'port' => getenv('MB_RABBITMQ_MANAGEMENT_API_PORT'),
+  'vhost' => getenv('MB_RABBITMQ_MANAGEMENT_API_VHOST'),
+  'username' => getenv('MB_RABBITMQ_MANAGEMENT_API_USERNAME'),
+  'password' => getenv('MB_RABBITMQ_MANAGEMENT_API_PASSWORD')
+]));
+
 $mbConfig->setProperty('mailchimpAPIkeys', [
   'country' => [
     'global' => getenv("MAILCHIMP_APIKEY"),
@@ -62,6 +70,8 @@ $mbConfig->setProperty('mailchimpAPIkeys', [
 );
 
 $mailchimpAPIKeys = $mbConfig->getProperty('mailchimpAPIkeys');
+$mcObjects = [];
 foreach ($mailchimpAPIKeys['country'] as $country => $key) {
-  $mbConfig->setProperty('mbcURMailChimp_' . $country, new MB_MailChimp($key));
+  $mcObjects[$country] = new MB_MailChimp($key);
 }
+$mbConfig->setProperty('mbcURMailChimp_Objects', $mcObjects);
