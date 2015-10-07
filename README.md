@@ -1,4 +1,4 @@
-Message Broker - Consumer
+mbc-registration-email
 ==============
 
 - **mbc-registration-email_userRegistration.php**: Consumes **userRegistrationQueue** to generate new user registration submitions to MailChimp. Submittions are made to various supported MailChimp accounts broken down by country. Currently supported:
