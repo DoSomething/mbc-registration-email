@@ -96,13 +96,22 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     $waitingSubmissionsCount = $this->waitingSubmissionsCount($this->waitingSubmissions);
     if ($waitingSubmissionsCount >= $this->batchSize) {
 
-      // Group by Mailchimp account
-      foreach ($this->waitingSubmissions as $country => $submissions) {
+      // Grouped by country and list_ids to define Mailchimp account and which list to subscribe to
+      foreach ($this->waitingSubmissions as $country => $lists) {
+        $country = strtolower($country);
+        foreach ($lists as $list_id => $submissions) {
 
-        $composedBatch = $this->mbcURMailChimp->composeSubscriberSubmission($submissions);
-        $results = $this->mbcURMailChimp[$country]->submitBatchToMailChimp($composedBatch);
-        if (count($results['error']) > 0) {
-          $this->resubscribeToMailChimp($results['error']);
+          try {
+            $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
+            $results = $this->mbcURMailChimp[$country]->submitBatchToMailChimp($list_id, $composedBatch);
+          }
+          catch(Exception $e) {
+            echo 'Error: Failed to submit batch to ' . $country . ' MailChimp account. Error: ' . $e->getMessage();
+            $this->channel->basic_cancel($this->message['original']->delivery_info['consumer_tag']);
+          }
+          if (count($results['error']) > 0) {
+            // $this->resubscribeToMailChimp($results['error']);
+          }
         }
       }
 
@@ -111,7 +120,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     }
 
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_CampaignSignup_Consumer->consumeUserRegistrationQueue() END -------', PHP_EOL . PHP_EOL;
-
   }
 
   /**
@@ -251,8 +259,8 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     $count = 0;
     foreach ($waitingSubmissions as $country => $list_id) {
-      foreach ($list_id as $signups) {
-        $count++;
+      foreach ($list_id as $id => $signups) {
+        $count += count($signups);
       }
     }
 
