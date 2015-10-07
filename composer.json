@@ -1,7 +1,7 @@
 {
   "name": "mbc-registration-email",
   "type": "project",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A consumer app for the Message Broker system that consumes entries on the userRegistrationQueue. Queue payload values determine the account created on Mailchimp. Error messages returned about submitted email addresses submitted to Mailchimp are sent to the userMailchimpStatusQueue.",
   "keywords": ["message broker", "mailchimp", "email"],
   "homepage": "https://github.com/DoSomething/mbc-registration-email",
@@ -16,8 +16,8 @@
   "require": {
     "php": ">= 5.3.0",
     "DoSomething/messagebroker-phplib": "0.2.*",
-    "dosomething/mb-toolbox": "0.7.*",
-    "drewm/mailchimp-api": "dev-master",
+    "dosomething/mb-toolbox": "0.8.*",
+    "drewm/mailchimp-api": "1.*",
     "dosomething/stathat": "1.*"
   },
   "require-dev": {
@@ -25,19 +25,21 @@
   },
   "autoload": {
     "psr-4": {
-      "DoSomething\\MBC_Registration_Email\\": "src/"
+      "DoSomething\\MBC_RegistrationEmail\\": "src/"
     }
   },
   "scripts": {
     "pre-install-cmd": [
-      "./bin/install.sh"
+      "./bin/install.sh",
+      "phpdoc -d ./ -t ./docs --ignore=vendor/*"
     ],
     "pre-package-update": [
       "git checkout master",
       "git pull"
     ],
     "post-package-update": [
-      "./vendor/bin/phpunit tests"
+      "./vendor/bin/phpunit tests",
+      "phpdoc -d ./ -t ./docs --ignore=vendor/*"
     ],
     "post-package-uninstall": [
       "./bin/uninstall.sh"
