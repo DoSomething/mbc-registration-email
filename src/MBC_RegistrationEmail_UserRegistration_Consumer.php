@@ -89,11 +89,12 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     // @todo: Throttle the number of consumers running. Based on the number of messages
     // waiting to be processed start / stop consumers. Make "reactive"!
-    $queueMessages = parent::queueStatus('transactionalQueue');
+    $queueMessages = parent::queueStatus('userRegistrationQueue');
     echo '- queueMessages ready: ' . $queueMessages['ready'], PHP_EOL;
     echo '- queueMessages unacked: ' . $queueMessages['unacked'], PHP_EOL;
 
-    if (count($this->waitingSubmissions) >= $this->batchSize) {
+    $waitingSubmissionsCount = $this->waitingSubmissionsCount($this->waitingSubmissions);
+    if ($waitingSubmissionsCount >= $this->batchSize) {
 
       // Group by Mailchimp account
       foreach ($this->waitingSubmissions as $country => $submissions) {
@@ -183,7 +184,10 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     if (!(isset($message['user_country'])) && isset($message['email_template'])) {
       $message['user_country'] = $this->countryFromTemplateName($message['email_template']);
     }
-    elseif (!(isset($message['user_country']))) {
+    elseif (isset($message['user_country'])) {
+       $this->submission['user_country'] = $message['user_country'];
+    }
+    else {
       $message['user_country'] = 'US';
     }
     $this->submission['mailchimp_list_id'] = $message['mailchimp_list_id'];
@@ -213,13 +217,13 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   }
 
   /**
-   * process(): Compose settings for submission to MailChimp to create user record.
+   * process(): Gather message settings into waitingSubmissions array for batch processing.
    */
   protected function process() {
 
-    // Add email and related details grouped by country. The country defines which MailChimp
+    // Add email and related message details grouped by country. The country defines which MailChimp
     // object and related account to submit to.
-    $this->waitingSubmissions[$this->submission['country']][] = $this->submission;
+    $this->waitingSubmissions[$this->submission['user_country']][$this->submission['mailchimp_list_id']][] = $this->submission;
     unset($this->submission);
   }
 
@@ -239,4 +243,20 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     return $country;
   }
+
+  /**
+   *
+   */
+  protected function waitingSubmissionsCount($waitingSubmissions) {
+
+    $count = 0;
+    foreach ($waitingSubmissions as $country => $list_id) {
+      foreach ($list_id as $signups) {
+        $count++;
+      }
+    }
+
+    return $count;
+  }
+
 }
