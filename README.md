@@ -7,7 +7,7 @@ mbc-registration-email
   - Brazil ("BR")
   - Mexico ("MX")
 
-  - **mbc-registration-email_campaignSignup.config**: Consumes **mailchimpCampaignSignupQueue** to add email accounts to interest groups. The inter group setting is used to create segmentations for mess mailouts.
+- **mbc-registration-email_campaignSignup.config**: Consumes **mailchimpCampaignSignupQueue** to add email accounts to interest groups. The inter group setting is used to create segmentations for mess mailouts.
 
 ####Run tests:
 `./vendor/bin/phpunit tests`
