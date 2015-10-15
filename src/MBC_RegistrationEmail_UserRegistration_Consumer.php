@@ -99,6 +99,9 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       // Grouped by country and list_ids to define Mailchimp account and which list to subscribe to
       foreach ($this->waitingSubmissions as $country => $lists) {
         $country = strtolower($country);
+        if (!(isset($this->mbcURMailChimp[$country]))) {
+          $county = 'global';
+        }
         foreach ($lists as $list_id => $submissions) {
 
           try {
