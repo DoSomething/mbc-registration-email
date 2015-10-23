@@ -18,9 +18,38 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
 {
 
   /**
-   * The number of queue entries to process in each session
+   * The number of email addresses to send in a batch submission to MailChimp.
+   * @var array $batchSize
    */
-  const BATCH_SIZE = 100;
+  private $batchSize;
+
+  /**
+   * MailChimp API keys indexed by supported country codes.
+   * @var array $mcAPIkeys
+   */
+  protected $mcAPIkeys;
+
+  /**
+   * One submission to be complited as part of batch submission to MailChimp.
+   */
+  protected $submission = [];
+
+  /**
+   * Submissions to be sent to MailChimp, indexed by MailChimp API and email address.
+   * @var array $waitingSubmissions
+   */
+  protected $waitingSubmissions = [];
+
+  /**
+   *
+   */
+  public function __construct($batchSize) {
+
+    parent::__construct();
+    $this->batchSize = $batchSize;
+    $this->mcAPIkeys = $this->mbConfig->getProperty('mailchimpAPIkeys');
+    $this->mbcURMailChimp = $this->mbConfig->getProperty('mbcURMailChimp');
+  }
 
   /**
    * consumeCampaignSignupQueue: Callback method for when messages arrive in the CampaignSignupQueue.
@@ -79,6 +108,10 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
    * @return boolean
    */
   protected function canProcess() {
+    
+    if (!(isset($this->message[''])) {
+      
+    }
 
     return TRUE;
   }
@@ -91,12 +124,44 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
    */
   protected function setter($message) {
 
+    $this->submission = [];
+    $this->submission['email'] = $message['email'];
+
+    $this->submission['mailchimp_group_name'] = $message['mailchimp_group_name'],
+    $this->submission['mailchimp_grouping_id'] = $message['mailchimp_grouping_id'],
+    $this->submission['application_id'] = $message['application_id'],
+    
+    if (!(isset($message['user_country'])) {
+       $this->submission['user_country'] = $this->countryFromTemplate($message['email_template']);
+       echo '- setter(): Using email_template value: ' . $message['email_template'] . ' to define user_country: ' .  $this->submission['user_country'], PHP_EOL;
+    }
+    else {
+      $this->submission['user_country'] = $message['user_country'];
+    }
+        
+        a:12:{s:8:"activity";s:15:"campaign_signup";s:5:"email";s:29:"scott.weiland@dosomething.org";s:3:"uid";s:7:"1705391";s:13:"user_language";s:2:"en";s:12:"user_country";N;s:10:"merge_vars";a:8:{s:12:"MEMBER_COUNT";s:11:"3.5 million";s:5:"FNAME";s:13:"Scott Weiland";s:14:"CAMPAIGN_TITLE";s:19:"Soldier Statements ";s:13:"CAMPAIGN_LINK";s:64:"http://staging.beta.dosomething.org/campaigns/soldier-statements";s:14:"CALL_TO_ACTION";s:58:"Make a sign sharing a soldier's experience in the service.";s:8:"STEP_ONE";s:9:"Ask Away!";s:8:"STEP_TWO";s:10:"Snap a Pic";s:10:"STEP_THREE";s:16:"Don't Stop There";}s:14:"email_template";s:21:"mb-campaign-signup-US";s:10:"subscribed";i:1;s:8:"event_id";s:4:"1454";s:10:"email_tags";a:2:{i:0;s:4:"1454";i:1;s:22:"drupal_campaign_signup";}s:18:"activity_timestamp";i:1443650825;s:14:"application_id";s:2:"US";}
+
   }
 
   /**
    * process(): Send composed settings to Mandrill to trigger transactional email message being sent.
    */
   protected function process() {
+
+    if (isset($message['application_id']) && $message['application_id'] == 'US') {
+      $templateBits = explode('-', $message['email_template']);
+      $country = $templateBits[count($templateBits) - 1];
+      if ($country != NULL && $country != '') {
+        $mcAPIkey = $this->mcAPIkeys['country'][$country];
+      }
+      else {
+        throw new Exception('Unable to define MailChimp API key - country: ' . $country);
+      }
+    }
+
+    // Add email and related details grouped by MailChimp key
+    $this->waitingSubmissions[$mcAPIkey][] = $this->submission;
+    unset($this->submission);
 
   }
 
