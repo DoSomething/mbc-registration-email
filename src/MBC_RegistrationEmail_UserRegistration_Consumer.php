@@ -115,8 +115,8 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
             $this->channel->basic_cancel($this->message['original']->delivery_info['consumer_tag']);
           }
           if (isset($results['error_count']) > 0) {
-            $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country]);
-            $processSubmissionErrors->processSubmissionErrors($results['errors']);
+            // $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country]);
+            // $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
 
           }
         }
