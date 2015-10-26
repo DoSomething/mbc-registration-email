@@ -94,25 +94,30 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     echo '- queueMessages unacked: ' . $queueMessages['unacked'], PHP_EOL;
 
     $waitingSubmissionsCount = $this->waitingSubmissionsCount($this->waitingSubmissions);
-    if ($waitingSubmissionsCount >= $this->batchSize) {
+    if ($waitingSubmissionsCount >= $this->batchSize ||
+       ($waitingUserMessages < $this->batchSize && $queueMessages['ready'] == 0)) {
 
       // Grouped by country and list_ids to define Mailchimp account and which list to subscribe to
       foreach ($this->waitingSubmissions as $country => $lists) {
         $country = strtolower($country);
+        if (!(isset($this->mbcURMailChimp[$country]))) {
+          $county = 'global';
+        }
         foreach ($lists as $list_id => $submissions) {
 
           try {
             $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
             $results = $this->mbcURMailChimp[$country]->submitBatchToMailChimp($list_id, $composedBatch);
             echo '** ' . $results['add_count'] . ' added, ' . $results['update_count'] . ' updated and ' . $results['error_count'] . ' errors.', PHP_EOL . PHP_EOL;
-
-            if (isset($results['error_count']) > 0) {
-              $this->processErrorSubmissions($results['errors'], $country, $composedBatch);
-            }
           }
           catch(Exception $e) {
             echo 'Error: Failed to submit batch to ' . $country . ' MailChimp account. Error: ' . $e->getMessage(), PHP_EOL;
             $this->channel->basic_cancel($this->message['original']->delivery_info['consumer_tag']);
+          }
+          if (isset($results['error_count']) > 0) {
+            $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country]);
+            $processSubmissionErrors->processSubmissionErrors($results['errors']);
+
           }
         }
       }
@@ -235,62 +240,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     // object and related account to submit to.
     $this->waitingSubmissions[$this->submission['user_country']][$this->submission['mailchimp_list_id']][] = $this->submission;
     unset($this->submission);
-  }
-
-  /**
-   *
-   */
-  protected function processErrorSubmissions($errors, $country, $composedBatch) {
-
-    $resubscribes = 0;
-    $failedResubscribes = 0;
-
-    // Add extry for each error encountered to the directUserStatusExchange
-    foreach ($errors as $errorDetails){
-
-      // Resubscribe if email address is reported as unsubscribed - the
-      // transaction / user signing up for a campaign is confirmation that
-      // they want to resubscribe.
-      if ($errorDetails['code'] == 212) {
-        $resubscribeStatus = $this->resubscribeEmail($errorDetails, $composedBatch);
-        $resubscribeStatus ? $resubscribes++ : $failedResubscribes++;
-      }
-      else {
-        $payload = serialize($errorDetails);
-        $mbError->publish($payload, 'user.mailchimp.error');
-      }
-    }
-  }
-
-  /**
-   *
-   */
-  protected function resubscribeEmail() {
-
-    // Lookup the group assignment details from $composedBatch by the email
-    // address in $errorDetails
-    foreach ($composedBatch as $composedItemCount => $composedItem) {
-      if ($composedItem['email']['email'] == $errorDetails['email']['email']) {
-        $resubscribeDetails = $composedItem;
-        break;
-      }
-    }
-
-    // Submit subscription to Mailchimp
-    $mc = new \Drewm\MailChimp($mAPIKey);
-
-    $results = $mc->call("lists/subscribe", array(
-      'id' => $mlid,
-      'email' => array(
-        'email' => $resubscribeDetails['email']['email']
-        ),
-      'merge_vars' => $resubscribeDetails['merge_vars'],
-      'double_optin' => FALSE,
-      'update_existing' => TRUE,
-      'replace_interests' => FALSE,
-      'send_welcome' => FALSE,
-    ));
-
   }
 
   /**
