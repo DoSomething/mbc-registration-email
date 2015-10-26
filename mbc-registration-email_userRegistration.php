@@ -14,7 +14,7 @@ define('CONFIG_PATH',  __DIR__ . '/messagebroker-config');
 // See consumeMwessage for further details.
 // Necessary for parallel processing when more than one consumer is running on the same queue.
 define('QOS_SIZE', 1);
-define('BATCH_SIZE', 100);
+define('BATCH_SIZE', 1);
 
 // Load up the Composer autoload magic
 require_once __DIR__ . '/vendor/autoload.php';

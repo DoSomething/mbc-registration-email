@@ -94,7 +94,8 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     echo '- queueMessages unacked: ' . $queueMessages['unacked'], PHP_EOL;
 
     $waitingSubmissionsCount = $this->waitingSubmissionsCount($this->waitingSubmissions);
-    if ($waitingSubmissionsCount >= $this->batchSize) {
+    if ($waitingSubmissionsCount >= $this->batchSize ||
+       ($waitingUserMessages < $this->batchSize && $queueMessages['ready'] == 0)) {
 
       // Grouped by country and list_ids to define Mailchimp account and which list to subscribe to
       foreach ($this->waitingSubmissions as $country => $lists) {
@@ -114,7 +115,9 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
             $this->channel->basic_cancel($this->message['original']->delivery_info['consumer_tag']);
           }
           if (isset($results['error_count']) > 0) {
-            // $this->processErrorSubmissions($results['errors']);
+            // $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country]);
+            // $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
+
           }
         }
       }
