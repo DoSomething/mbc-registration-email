@@ -69,10 +69,12 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
         $this->setter($this->message);
         $this->process();
+
+        // @todo: Move sendAck to MailChimp batch submission to sendAck once message has been submitted
+        $this->messageBroker->sendAck($this->message['payload']);
       }
       catch(Exception $e) {
         echo 'Error sending email address: ' . $this->message['email'] . ' to MailChimp for user signup. Error: ' . $e->getMessage();
-        $this->messageBroker->sendAck($this->message['payload']);
 
         // @todo: Send copy of message to "dead message queue" with details of the original processing: date,
         // origin queue, processing app. The "dead messages" queue can be used to monitor health.
