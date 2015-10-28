@@ -28,13 +28,13 @@ class MBC_RegistrationEmail_SubmissionErrors
     $this->mailChimp = $mailChimp;
     
     $this->mbConfig = MB_Configuration::getInstance();
-    $this->messageBroker = $this->mbConfig->getProperty('messageBrokerErrors');
+    $this->messageBroker = $this->mbConfig->getProperty('messageBroker_Subscribes');
   }
 
   /**
    *
    */
-  protected function processErrorSubmissions($errors, $composedBatch) {
+  public function processSubmissionErrors($errors, $composedBatch) {
     
     $routingKey = 'user.mailchimp.error';
 
