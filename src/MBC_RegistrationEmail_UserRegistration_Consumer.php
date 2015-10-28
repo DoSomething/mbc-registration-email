@@ -100,11 +100,11 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
         if (!(isset($this->mbcURMailChimp[$country]))) {
           $county = 'global';
         }
-        foreach ($lists as $list_id => $submissions) {
+        foreach ($lists as $listID => $submissions) {
 
           try {
             $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
-            $results = $this->mbcURMailChimp[$country]->submitBatchToMailChimp($list_id, $composedBatch);
+            $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $composedBatch);
             echo '** ' . $results['add_count'] . ' added, ' . $results['update_count'] . ' updated and ' . $results['error_count'] . ' errors.', PHP_EOL . PHP_EOL;
           }
           catch(Exception $e) {
@@ -112,7 +112,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
             $this->channel->basic_cancel($this->message['original']->delivery_info['consumer_tag']);
           }
           if (isset($results['error_count']) > 0) {
-            $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country]);
+            $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
             $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
           }
         }
