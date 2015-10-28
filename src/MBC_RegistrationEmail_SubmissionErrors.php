@@ -21,11 +21,17 @@ class MBC_RegistrationEmail_SubmissionErrors
   protected $mailChimp;
 
   /**
+   * The ID of the MailChimp list which returned errors.
+   */
+  protected $listID;
+
+  /**
    *
    */
-  public function __construct($mailChimp) {
+  public function __construct($mailChimp), $listID {
 
     $this->mailChimp = $mailChimp;
+    $this->listID = $listID;
     
     $this->mbConfig = MB_Configuration::getInstance();
     $this->messageBroker = $this->mbConfig->getProperty('messageBroker_Subscribes');
@@ -77,7 +83,7 @@ class MBC_RegistrationEmail_SubmissionErrors
         break;
       }
     }
-    $results = $this->mailChimp->submitToMailChimp($resubscribeDetails);
+    $results = $this->mailChimp->submitSubscribe($this->listID, $resubscribeDetails);
     
     // Keep track of successful resubscribes
     // $resubscribeStatus ? $resubscribes++ : $failedResubscribes++;
