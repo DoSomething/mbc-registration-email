@@ -38,7 +38,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    * Submissions to be sent to MailChimp, indexed by MailChimp API and email address.
    * @var array $waitingSubmissions
    */
-  protected $waitingSubmissions = [];
+  protected $waitingSubmissions;
 
   /**
    *
@@ -48,6 +48,8 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     parent::__construct();
     $this->batchSize = $batchSize;
     $this->mbcURMailChimp = $this->mbConfig->getProperty('mbcURMailChimp_Objects');
+    $this->submission = [];
+    $this->waitingSubmissions = [];
   }
 
   /**
@@ -89,16 +91,8 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       // origin queue, processing app. The "dead messages" queue can be used to monitor health.
     }
 
-    // @todo: Throttle the number of consumers running. Based on the number of messages
-    // waiting to be processed start / stop consumers. Make "reactive"!
-    $queueMessages = parent::queueStatus('userRegistrationQueue');
-    echo '- queueMessages ready: ' . $queueMessages['ready'], PHP_EOL;
-    echo '- queueMessages unacked: ' . $queueMessages['unacked'], PHP_EOL;
 
-    $waitingSubmissionsCount = $this->waitingSubmissionsCount($this->waitingSubmissions);
-    echo '- waitingSubmissionsCount: ' . $waitingSubmissionsCount, PHP_EOL;
-    if ($waitingSubmissionsCount >= $this->batchSize ||
-        (($waitingSubmissionsCount != 0 && $waitingSubmissionsCount <= $this->batchSize) && $queueMessages['ready'] == 0)) {
+    if ($this->processSubmissions()) {
 
       // Grouped by country and list_ids to define Mailchimp account and which list to subscribe to
       foreach ($this->waitingSubmissions as $country => $lists) {
@@ -118,9 +112,8 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
             $this->channel->basic_cancel($this->message['original']->delivery_info['consumer_tag']);
           }
           if (isset($results['error_count']) > 0) {
-            // $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country]);
-            // $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
-
+            $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country]);
+            $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
           }
         }
       }
@@ -246,6 +239,32 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   }
 
   /**
+   * processSubmissions(): Conditions to decide if current batch of users is ready for submission to MailChimp
+   *
+   * @return boolean
+   */
+  private function processSubmissions() {
+
+    // @todo: Throttle the number of consumers running. Based on the number of messages
+    // waiting to be processed start / stop consumers. Make "reactive"!
+    $queueMessages = parent::queueStatus('userRegistrationQueue');
+    echo '- queueMessages ready: ' . $queueMessages['ready'], PHP_EOL;
+    echo '- queueMessages unacked: ' . $queueMessages['unacked'], PHP_EOL;
+
+    $waitingSubmissionsCount = $this->waitingSubmissionsCount($this->waitingSubmissions);
+    echo '- waitingSubmissionsCount: ' . $waitingSubmissionsCount, PHP_EOL;
+    if ($waitingSubmissionsCount >= $this->batchSize) {
+      return TRUE;
+    }
+
+    if (($waitingSubmissionsCount != 0 && $waitingSubmissionsCount <= $this->batchSize) && $queueMessages['ready'] == 0) {
+      return TRUE;
+    }
+
+    return FALSE;
+  }
+
+  /**
    * countryFromTemplateName(): Extract country code from email template string. The last characters in string are country specific.
    *
    * @param string $emailTemplate
@@ -263,9 +282,15 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   }
 
   /**
+   * waitingSubmissionsCount() - Calculate the total number of submissions ready to be batch submitted.
    *
+   * @param array $waitingSubmissions
+   *   User submissions grouped by country and list_id
+   *
+   * @return integer $count
+   *   The total number of user records combined from all of the countries and their list_ids.
    */
-  protected function waitingSubmissionsCount($waitingSubmissions) {
+  protected function waitingSubmissionsCount($waitingSubmissions = NULL) {
 
     $count = 0;
     foreach ($waitingSubmissions as $country => $list_id) {
