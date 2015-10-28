@@ -28,7 +28,7 @@ class MBC_RegistrationEmail_SubmissionErrors
   /**
    *
    */
-  public function __construct($mailChimp), $listID {
+  public function __construct($mailChimp, $listID) {
 
     $this->mailChimp = $mailChimp;
     $this->listID = $listID;
