@@ -105,15 +105,14 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
           try {
             $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
             $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $composedBatch);
-            echo '** ' . $results['add_count'] . ' added, ' . $results['update_count'] . ' updated and ' . $results['error_count'] . ' errors.', PHP_EOL . PHP_EOL;
+            if (isset($results['error_count']) > 0) {
+              $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
+              $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
+            }
           }
           catch(Exception $e) {
             echo 'Error: Failed to submit batch to ' . $country . ' MailChimp account. Error: ' . $e->getMessage(), PHP_EOL;
             $this->channel->basic_cancel($this->message['original']->delivery_info['consumer_tag']);
-          }
-          if (isset($results['error_count']) > 0) {
-            $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
-            $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
           }
         }
       }
