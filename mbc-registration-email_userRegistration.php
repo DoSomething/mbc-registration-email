@@ -20,7 +20,7 @@ define('BATCH_SIZE', 1);
 require_once __DIR__ . '/vendor/autoload.php';
 use DoSomething\MBC_RegistrationEmail\MBC_RegistrationEmail_UserRegistration_Consumer;
 
-require_once __DIR__ . '/mbc-registration-email_userRegistrations.config.inc';
+require_once __DIR__ . '/mbc-registration-email_userRegistration.config.inc';
 
 // Kick off
 echo '------- mbc-registration-email_userRegistration START: ' . date('j D M Y G:i:s T') . ' -------', PHP_EOL;
