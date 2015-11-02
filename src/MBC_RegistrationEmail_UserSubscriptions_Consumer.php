@@ -1,6 +1,7 @@
 <?php
 /**
- * MBC_RegistrationEmail_UserRegistration_Consumer:  
+ * MBC_RegistrationEmail_UserRegistration_Consumer: Collection of functionality related to
+ * processing userMailchimpStatusQueue. 
  */
 
 namespace DoSomething\MBC_RegistrationEmail;
@@ -12,19 +13,21 @@ use DoSomething\MB_Toolbox\MB_Toolbox_cURL;
 use \Exception;
 
 /**
- * MBC_RegistrationEmail_UserSubscriptions_Consumer class - .
+ * MBC_RegistrationEmail_UserSubscriptions_Consumer class - Class to process submissions to MailChimp
+ * lists/subscribe that resulted in an error response. Submit error details to mb-users-api /user/banned
+ * to mark user documents as not accessable by emai.
  */
 class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseConsumer
 {
 
   /**
-   * 
+   * cURL object to access cUrl related methods
    * @var object $mbToolboxcURL
    */
   protected $mbToolboxcURL;
-  
+
   /**
-   * 
+   *
    * @var string $curlUrl
    */
   private $curlUrl;
@@ -36,12 +39,12 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
     
     $this->mbConfig = MB_Configuration::getInstance();
     $this->mbToolboxcURL = $this->mbConfig->getProperty('mbToolboxcURL');
-    $generalSettings = $this->mbConfig->getProperty('generalSettings');
-    
-    
-    $this->curlUrl = $generalSettings[''] . '/user/banned';
-    
-    
+    $mbUserAPI = $this->mbConfig->getProperty('mb_user_api_config');
+    $this->curlUrl = $mbUserAPI['host'];
+    if (isset($mbUserAPI['port'])) {
+      $this->curlUrl .= ':' . $mbUserAPI['port'];
+    }
+    $this->curlUrl .= '/user/banned';
   }
 
   /**
@@ -52,10 +55,10 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
    */
   public function consumeUserMailchimpStatusQueue($payload) {
 
-    echo '-------  mbc-registration-email - MBC_RegistrationEmail_CampaignSignup_Consumer->consumeUserRegistrationQueue() START -------', PHP_EOL;
+    echo '-------  mbc-registration-email - MBC_RegistrationEmail_UserSubscriptions_Consumer->consumeUserMailchimpStatusQueue() START -------', PHP_EOL;
 
     parent::consumeQueue($payload);
-    echo '** Consuming: ' . $this->message['email'], PHP_EOL;
+    echo '** Consuming: ' . $this->message['email']['email'], PHP_EOL;
 
     if ($this->canProcess()) {
 
@@ -70,11 +73,10 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
 
     }
     else {
-      echo '- ' . $this->message['email'] . ' can\'t be processed, removing from queue.', PHP_EOL;
-      $this->messageBroker->sendAck($this->message['payload']);
+      echo '- ' . $this->message['email']['email'] . ' can\'t be processed.', PHP_EOL;
     }
 
-    echo '-------  mbc-registration-email - MBC_RegistrationEmail_CampaignSignup_Consumer->consumeUserRegistrationQueue() END -------', PHP_EOL . PHP_EOL;
+    echo '-------  mbc-registration-email - MBC_RegistrationEmail_UserSubscriptions_Consumer->consumeUserMailchimpStatusQueue() END -------', PHP_EOL . PHP_EOL;
   }
 
   /**
@@ -92,6 +94,10 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
       echo '- canProcess(), error not set.', PHP_EOL;
       return FALSE;
     }
+    if (isset($this->message['code']) && $this->message['code'] == 250) {
+      echo '- canProcess(), error code 250 acceptable.', PHP_EOL;
+      return FALSE;
+    }
     if (!(isset($this->message['error']))) {
       echo '- canProcess(), error not set.', PHP_EOL;
       return FALSE;
@@ -101,7 +107,7 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
   }
 
   /**
-   * Construct values for submission to email service.
+   * Construct values for submission to mb-users-api service.
    *
    * @param array $message
    *   The message to process based on what was collected from the queue being processed.
@@ -115,11 +121,11 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
   }
 
   /**
-   * process(): Gather message settings into waitingSubmissions array for batch processing.
+   * process(): Submit formatted message values to mb-users-api /user/banned.
    */
   protected function process() {
 
-    $reason = 'Error: ' . $this->submission['code'] . ', ' . $this->submission['code'];
+    $reason = 'Error: ' . $this->submission['code'] . ', ' . $this->submission['error'];
     $post = [
       'email' => $this->submission['email'],
       'reason' => $reason,
