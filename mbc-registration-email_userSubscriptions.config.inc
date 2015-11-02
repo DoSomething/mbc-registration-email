@@ -58,4 +58,8 @@ $mbConfig->setProperty('mbRabbitMQManagementAPI', new MB_RabbitMQManagementAPI([
   'password' => getenv('MB_RABBITMQ_MANAGEMENT_API_PASSWORD')
 ]));
 
+$mbConfig->setProperty('mb_user_api_config', array(
+  'host' => getenv("MB_USER_API_HOST"),
+  'port' => getenv('MB_USER_API_PORT')
+));
 $mbConfig->setProperty('mbToolboxcURL', new MB_Toolbox_cURL());
