@@ -18,9 +18,9 @@ use DoSomething\MBC_RegistrationEmail\MBC_RegistrationEmail_UserSubscriptions_Co
 require_once __DIR__ . '/mbc-registration-email_userSubscriptions.config.inc';
 
 // Kick off
-echo '------- mbc-registration-email_userSubscription START: ' . date('j D M Y G:i:s T') . ' -------', PHP_EOL;
+echo '------- mbc-registration-email_userSubscriptions START: ' . date('j D M Y G:i:s T') . ' -------', PHP_EOL;
 
-$mb = $mbConfig->getProperty('messageBroker_Subscribes');
+$mb = $mbConfig->getProperty('messageBroker');
 $mb->consumeMessage(array(new MBC_RegistrationEmail_UserSubscriptions_Consumer(), 'consumeUserMailchimpStatusQueue'), QOS_SIZE);
 
 echo '-------mbc-registration-email_useerSubscriptions END: ' . date('j D M Y G:i:s T') . ' -------', PHP_EOL;
