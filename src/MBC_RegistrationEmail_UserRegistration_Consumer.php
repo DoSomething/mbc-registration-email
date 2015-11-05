@@ -98,14 +98,14 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       foreach ($this->waitingSubmissions as $country => $lists) {
         $country = strtolower($country);
         if (!(isset($this->mbcURMailChimp[$country]))) {
-          $county = 'global';
+          $country = 'global';
         }
         foreach ($lists as $listID => $submissions) {
 
           try {
             $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
             $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $composedBatch);
-            if (isset($results['error_count']) > 0) {
+            if (isset($results['error_count']) && $results['error_count'] > 0) {
               $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
               $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
             }
