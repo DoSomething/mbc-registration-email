@@ -103,6 +103,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
         foreach ($lists as $listID => $submissions) {
 
           try {
+            echo '-> submitting country: ' . $country, PHP_EOL;
             $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
             $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $composedBatch);
             if (isset($results['error_count']) && $results['error_count'] > 0) {
