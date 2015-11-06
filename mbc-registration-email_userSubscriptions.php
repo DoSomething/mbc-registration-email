@@ -2,6 +2,7 @@
 /**
  * mbc-registration-email_userSubscriptions
  *
+ * Process user subscription messages for submission to MailChimp to create entries by email address.
  */
 
 date_default_timezone_set('America/New_York');
