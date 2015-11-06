@@ -37,6 +37,7 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
    */
   public function __construct() {
     
+    parent::__construct();
     $this->mbConfig = MB_Configuration::getInstance();
     $this->mbToolboxcURL = $this->mbConfig->getProperty('mbToolboxcURL');
     $mbUserAPI = $this->mbConfig->getProperty('mb_user_api_config');
