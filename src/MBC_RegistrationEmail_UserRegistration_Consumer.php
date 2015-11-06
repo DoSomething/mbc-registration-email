@@ -17,11 +17,17 @@ use \Exception;
 class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseConsumer
 {
 
-  /**
-   * The number of email addresses to send in a batch submission to MailChimp.
-   * @var array $batchSize
+  /*
+   * The amount of seconds to wait in an idle state before processing existing submissions even
+   * if the batch size has not been reached.
    */
-  private $batchSize;
+  const BATCH_SIZE = 50;
+
+  /*
+   * The amount of seconds to wait in an idle state before processing existing submissions even
+   * if the batch size has not been reached.
+   */
+  const IDLE_TIME = 300;
 
   /**
    * MailChimp objects indexed by supported country codes.
@@ -41,15 +47,28 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   protected $waitingSubmissions;
 
   /**
-   *
+   * Submission message objects used to send AckBacks once message entry has been
+   * successfully submitted to MailChimp.
+   * @var array $waitingSubmissionsAcks
    */
-  public function __construct($batchSize) {
+  protected $waitingSubmissionsAcks;
+
+  /**
+   * Submissions to be sent to MailChimp, indexed by MailChimp API and email address.
+   * @var array $waitingSubmissions
+   */
+  protected $lastSubmissionStamp;
+
+  /**
+   * Initialize MailChimp objects for each supported country.
+   */
+  public function __construct() {
 
     parent::__construct();
-    $this->batchSize = $batchSize;
     $this->mbcURMailChimp = $this->mbConfig->getProperty('mbcURMailChimp_Objects');
     $this->submission = [];
     $this->waitingSubmissions = [];
+    $this->waitingSubmissionsAcks = [];
   }
 
   /**
@@ -66,13 +85,12 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     echo '** Consuming: ' . $this->message['email'], PHP_EOL;
 
     if ($this->canProcess()) {
+      $this->lastSubmissionStamp = time();
 
       try {
 
         $this->setter($this->message);
         $this->process();
-
-        // @todo: Move sendAck to MailChimp batch submission to sendAck once message has been submitted
         $this->messageBroker->sendAck($this->message['payload']);
       }
       catch(Exception $e) {
@@ -92,32 +110,9 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     }
 
 
-    if ($this->processSubmissions()) {
+    if ($this->canProcessSubmissions()) {
 
-      // Grouped by country and list_ids to define Mailchimp account and which list to subscribe to
-      foreach ($this->waitingSubmissions as $country => $lists) {
-        $country = strtolower($country);
-        if (!(isset($this->mbcURMailChimp[$country]))) {
-          $country = 'global';
-        }
-        foreach ($lists as $listID => $submissions) {
-
-          try {
-            echo '-> submitting country: ' . $country, PHP_EOL;
-            $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
-            $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $composedBatch);
-            if (isset($results['error_count']) && $results['error_count'] > 0) {
-              $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
-              $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
-            }
-          }
-          catch(Exception $e) {
-            echo 'Error: Failed to submit batch to ' . $country . ' MailChimp account. Error: ' . $e->getMessage(), PHP_EOL;
-            $this->channel->basic_cancel($this->message['original']->delivery_info['consumer_tag']);
-          }
-        }
-      }
-
+      $this->processSubmissions();
       echo '- unset $this->waitingSubmissions: ' . count($this->waitingSubmissions), PHP_EOL . PHP_EOL;
       unset($this->waitingSubmissions);
     }
@@ -243,7 +238,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    *
    * @return boolean
    */
-  private function processSubmissions() {
+  private function canProcessSubmissions() {
 
     // @todo: Throttle the number of consumers running. Based on the number of messages
     // waiting to be processed start / stop consumers. Make "reactive"!
@@ -253,15 +248,61 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     $waitingSubmissionsCount = $this->waitingSubmissionsCount($this->waitingSubmissions);
     echo '- waitingSubmissionsCount: ' . $waitingSubmissionsCount, PHP_EOL;
-    if ($waitingSubmissionsCount >= $this->batchSize) {
+    if ($waitingSubmissionsCount >= self::BATCH_SIZE) {
       return TRUE;
     }
 
-    if (($waitingSubmissionsCount != 0 && $waitingSubmissionsCount <= $this->batchSize) && $queueMessages['ready'] == 0) {
+    // Are there message still to be processed
+    if ($waitingSubmissionsCount != 0 && $waitingSubmissionsCount <= self::BATCH_SIZE) {
+      $waitingSubmissions = TRUE;
+    }
+    else {
+      $waitingSubmissions = FALSE;
+    }
+    // Idle time, process $waitingSubmissions if 5 minutes since last activity
+    if ($queueMessages['ready'] == 0 && (($this->lastSubmissionStamp - self::IDLE_TIME) < time())) {
+      $tiredOfWaiting = TRUE;
+    }
+    else {
+      $tiredOfWaiting = FALSE;
+    }
+    if ($waitingSubmissions && $tiredOfWaiting) {
       return TRUE;
     }
 
     return FALSE;
+  }
+
+  /**
+   *
+   */
+  protected function processSubmissions() {
+
+    // Grouped by country and list_ids to define Mailchimp account and which list to subscribe to
+    foreach ($this->waitingSubmissions as $country => $lists) {
+      $country = strtolower($country);
+      if (!(isset($this->mbcURMailChimp[$country]))) {
+        $country = 'global';
+      }
+      foreach ($lists as $listID => $submissions) {
+
+        try {
+          echo '-> submitting country: ' . $country, PHP_EOL;
+          $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
+          $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $composedBatch);
+          if (isset($results['error_count']) && $results['error_count'] > 0) {
+            $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
+            $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
+          }
+        }
+        catch(Exception $e) {
+          echo 'Error: Failed to submit batch to ' . $country . ' MailChimp account. Error: ' . $e->getMessage(), PHP_EOL;
+          $this->channel->basic_cancel($this->message['original']->delivery_info['consumer_tag']);
+        }
+      }
+
+    }
+
   }
 
   /**
