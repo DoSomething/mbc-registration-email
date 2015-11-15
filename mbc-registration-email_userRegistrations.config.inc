@@ -2,7 +2,7 @@
 /**
  * Configuration settings for mbc-registration-email_userRegistrations.
  *
- * Message Broker configuration settings formbc-registration-email_userRegistrations
+ * Message Broker configuration settings for mbc-registration-email_userRegistrations
  * application. The MB_Configuration class is used to create a singleton instance that
  * can be referenced anywhere in the application for application configuration settings.
  *
