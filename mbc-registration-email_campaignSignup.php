@@ -3,9 +3,9 @@
  * mbc-registration-email_campaignSignup
  *
  * Collect new user registrations from the mailchimpCampaignSignupQueue as a batch job.
- * A collection of entries will result in a batch submission to create
- * entries/accounts in MailChimp. The MailChimp accounts are used to build
- * segments for mass mailouts.
+ * A collection of entries will result in a batch submission to create campaign (interest
+ * group assignment) entries/accounts in MailChimp. The MailChimp accounts are used to build
+ * segments for mass mail outs.
  */
 
 date_default_timezone_set('America/New_York');
