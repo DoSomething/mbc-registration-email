@@ -27,7 +27,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    * The amount of seconds to wait in an idle state before processing existing submissions even
    * if the batch size has not been reached.
    */
-  const IDLE_TIME = 300;
+  const IDLE_TIME = 6000;
 
   /**
    * MailChimp objects indexed by supported country codes.
@@ -144,8 +144,8 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       echo '- canProcess(), activity not set.', PHP_EOL;
       return FALSE;
     }
-    if (isset($this->message['activity']) && $this->message['activity'] != 'user_register') {
-      echo '- canProcess(), activity: ' . $this->message['activity'] . ' not "user_register", skipping message.', PHP_EOL;
+    if ($this->message['activity'] != 'user_register' && $this->message['activity'] != 'vote') {
+      echo '- canProcess(), activity: ' . $this->message['activity'] . ' not "user_register" or "vote", skipping message.', PHP_EOL;
       return FALSE;
     }
 
@@ -159,8 +159,8 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       return FALSE;
     }
 
-    if (isset($this->message['birthdate_timestamp']) && ($this->message['birthdate_timestamp'] < time() - (60 * 60 * 24 * 365 * 13))) {
-      echo '- canProcess(), user user 13 years old.', PHP_EOL;
+    if (isset($this->message['birthdate_timestamp']) && ($this->message['birthdate_timestamp'] > time() - (60 * 60 * 24 * 365 * 13))) {
+      echo '- canProcess(), user is 13 or under years old.', PHP_EOL;
       return FALSE;
     }
 
