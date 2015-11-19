@@ -68,6 +68,7 @@ $mbConfig->setProperty('mailchimpAPIkeys', [
   'country' => [
     'global' => getenv("MAILCHIMP_APIKEY"),
     'us'     => getenv("MAILCHIMP_APIKEY"),
+    'gb'     => getenv("MAILCHIMP_UK_APIKEY"),
     'uk'     => getenv("MAILCHIMP_UK_APIKEY"),
     'mx'     => getenv("MAILCHIMP_MX_APIKEY"),
     'br'     => getenv("MAILCHIMP_BR_APIKEY"),
