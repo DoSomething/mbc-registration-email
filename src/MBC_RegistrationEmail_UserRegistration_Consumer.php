@@ -27,7 +27,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    * The amount of seconds to wait in an idle state before processing existing submissions even
    * if the batch size has not been reached.
    */
-  const IDLE_TIME = 6000;
+  const IDLE_TIME = 300;
 
   /**
    * MailChimp objects indexed by supported country codes.
@@ -69,6 +69,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     $this->submission = [];
     $this->waitingSubmissions = [];
     $this->waitingSubmissionsAcks = [];
+    $this->lastSubmissionStamp = time();
   }
 
   /**
@@ -82,10 +83,15 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_CampaignSignup_Consumer->consumeUserRegistrationQueue() START -------', PHP_EOL;
 
     parent::consumeQueue($payload);
-    echo '** Consuming: ' . $this->message['email'], PHP_EOL;
+
+    echo '** Consuming: ' . $this->message['email'];
+    if (isset($this->message['user_country'])) {
+      echo ' from: ' .  $this->message['user_country'], PHP_EOL;
+    } else {
+      echo ', user_country not defined.', PHP_EOL;
+    }
 
     if ($this->canProcess()) {
-      $this->lastSubmissionStamp = time();
 
       try {
 
@@ -144,8 +150,13 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       echo '- canProcess(), activity not set.', PHP_EOL;
       return FALSE;
     }
-    if ($this->message['activity'] != 'user_register' && $this->message['activity'] != 'vote') {
-      echo '- canProcess(), activity: ' . $this->message['activity'] . ' not "user_register" or "vote", skipping message.', PHP_EOL;
+    if ($this->message['activity'] != 'user_register' &&
+        $this->message['activity'] != 'vote' &&
+        $this->message['activity'] != 'user_welcome-niche' &&
+        $this->message['activity'] != 'user_welcome-teenlife' &&
+        $this->message['activity'] != 'user_welcome-att-ichannel' &&
+        $this->message['activity'] != 'user_import') {
+      echo '- canProcess(), activity: ' . $this->message['activity'] . ' not "user_register","vote" or one of the user_import activities, skipping message.', PHP_EOL;
       return FALSE;
     }
 
@@ -164,12 +175,23 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       return FALSE;
     }
 
+    if (isset($this->message['user_country']) && $this->message['user_country'] == 'CA') {
+      echo '- canProcess(), user_country : CA, skip processing.', PHP_EOL;
+      return FALSE;
+    }
+    if (isset($this->message['application_id']) && $this->message['application_id'] == 'CA') {
+      echo '- canProcess(), application_id : CA, skip processing.', PHP_EOL;
+      return FALSE;
+    }
+
     if (!(isset($this->message['user_language']))) {
       echo '- canProcess(), WARNING: user_language not set.', PHP_EOL;
+      parent::reportErrorPayload();
     }
 
     if (!(isset($this->message['user_country']))) {
       echo '- canProcess(), WARNING: user_country not set.', PHP_EOL;
+      parent::reportErrorPayload();
     }
 
     return TRUE;
@@ -186,17 +208,39 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     $this->submission = [];
     $this->submission['email'] = $message['email'];
 
+    // Deal with old affiliate sites and not have user_country set
+    if ($message['application_id'] == 'GB' || $message['application_id'] == 'UK') {
+      $message['user_country'] = 'uk';
+    }
+
     // Extract user_country if not set or default to "US".
     if (!(isset($message['user_country'])) && isset($message['email_template'])) {
-      $message['user_country'] = $this->countryFromTemplateName($message['email_template']);
+      $message['user_country'] = strtolower($this->countryFromTemplateName($message['email_template']));
     }
     elseif (isset($message['user_country'])) {
-       $this->submission['user_country'] = $message['user_country'];
+       $this->submission['user_country'] = strtolower($message['user_country']);
     }
     else {
-      $message['user_country'] = 'US';
+      $this->submission['user_country'] = 'us';
     }
-    $this->submission['mailchimp_list_id'] = $message['mailchimp_list_id'];
+
+    // Default to main US list if value not present
+    if (strtolower($this->submission['user_country']) == 'uk' || strtolower($this->submission['user_country']) == 'gb') {
+      echo '- user_country: ' . strtolower($this->submission['user_country']) . ', assigning UK mailchimp_list_id.', PHP_EOL;
+      $this->submission['mailchimp_list_id'] = 'fd48935715';
+    }
+    elseif (isset($message['mailchimp_list_id'])) {
+      $this->submission['mailchimp_list_id'] = $message['mailchimp_list_id'];
+    }
+    else {
+      echo '- WARNING: mailchimp_list_id not set, defaulting to general US list.', PHP_EOL;
+      $this->submission['mailchimp_list_id'] = 'f2fab1dfd4';
+    }
+    if (!(isset($this->mbcURMailChimp[$this->submission['user_country']]))) {
+      echo '- WARNING: mbcURMailChimp object for ' . $this->submission['user_country'] . ' does not exist, defaulting to global list.', PHP_EOL;
+      $this->submission['user_country'] = 'global';
+      $this->submission['mailchimp_list_id'] = '8e7844f6dd';
+    }
 
     if (isset($message['user_language'])) {
       $this->submission['user_language'] = $message['user_language'];
@@ -229,7 +273,12 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     // Add email and related message details grouped by country. The country defines which MailChimp
     // object and related account to submit to.
-    $this->waitingSubmissions[$this->submission['user_country']][$this->submission['mailchimp_list_id']][] = $this->submission;
+
+    // @todo: Root out apps that are not setting the user_country and/or mailchimp_list_id
+
+    $country = $this->submission['user_country'];
+    $mailchimp_list_id = $this->submission['mailchimp_list_id'];
+    $this->waitingSubmissions[$country][$mailchimp_list_id][] = $this->submission;
     unset($this->submission);
   }
 
@@ -260,7 +309,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       $waitingSubmissions = FALSE;
     }
     // Idle time, process $waitingSubmissions if 5 minutes since last activity
-    if ($queueMessages['ready'] == 0 && (($this->lastSubmissionStamp - self::IDLE_TIME) < time())) {
+    if ($queueMessages['ready'] == 0 && (($this->lastSubmissionStamp + self::IDLE_TIME) < time())) {
       $tiredOfWaiting = TRUE;
     }
     else {
@@ -274,16 +323,13 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   }
 
   /**
-   *
+   * processSubmissions(): Submit contents of waiting submissions by country and lists within the countries.
    */
   protected function processSubmissions() {
 
     // Grouped by country and list_ids to define Mailchimp account and which list to subscribe to
     foreach ($this->waitingSubmissions as $country => $lists) {
       $country = strtolower($country);
-      if (!(isset($this->mbcURMailChimp[$country]))) {
-        $country = 'global';
-      }
       foreach ($lists as $listID => $submissions) {
 
         try {
@@ -297,12 +343,12 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
         }
         catch(Exception $e) {
           echo 'Error: Failed to submit batch to ' . $country . ' MailChimp account. Error: ' . $e->getMessage(), PHP_EOL;
-          $this->channel->basic_cancel($this->message['original']->delivery_info['consumer_tag']);
+          $this->channel->basic_cancel($this->message['payload']->delivery_info['consumer_tag']);
         }
       }
 
     }
-
+    $this->lastSubmissionStamp = time();
   }
 
   /**
