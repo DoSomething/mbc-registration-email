@@ -88,7 +88,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     if (isset($this->message['user_country'])) {
       echo ' from: ' .  $this->message['user_country'], PHP_EOL;
     } else {
-      echo ', user_country not define.', PHP_EOL;
+      echo ', user_country not defined.', PHP_EOL;
     }
 
     if ($this->canProcess()) {
@@ -186,12 +186,12 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     if (!(isset($this->message['user_language']))) {
       echo '- canProcess(), WARNING: user_language not set.', PHP_EOL;
-      $this->reportErrorPayload();
+      parent::reportErrorPayload();
     }
 
     if (!(isset($this->message['user_country']))) {
       echo '- canProcess(), WARNING: user_country not set.', PHP_EOL;
-      $this->reportErrorPayload();
+      parent::reportErrorPayload();
     }
 
     return TRUE;
@@ -387,17 +387,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     }
 
     return $count;
-  }
-
-  /**
-   * Log payload with RabbitMQ objects removed for clarity.
-   */
-  private function reportErrorPayload() {
-
-    $errorPayload = $this->message;
-    unset($errorPayload['payload']);
-    unset($errorPayload['original']);
-    echo '-> message: ' . print_r($errorPayload, TRUE), PHP_EOL;
   }
 
 }
