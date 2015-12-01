@@ -43,7 +43,7 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_CampaignSignup_Consumer->consumeCampaignSignupQueue() START -------', PHP_EOL;
 
     parent::consumeQueue($payload);
-    echo '** Consuming: ' . $this->message['email'], PHP_EOL;
+    parent::logConsumption('email');
 
     if ($this->canProcess()) {
 
@@ -54,10 +54,10 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
       }
       catch(Exception $e) {
         echo 'Error sending email address: ' . $this->message['email'] . ' to MailChimp for campaign signup / interest group assignment. Error: ' . $e->getMessage();
-        $this->messageBroker->sendAck($this->message['payload']);
 
         // @todo: Send copy of message to "dead message queue" with details of the original processing: date,
         // origin queue, processing app. The "dead messages" queue can be used to monitor health.
+        $this->messageBroker->sendAck($this->message['payload']);
       }
 
     }
@@ -87,12 +87,17 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
    */
   protected function canProcess() {
 
-    if (!(isset($this->message['mailchimp_list_id']))) {
-      echo '- canProcess() - mailchimp_list_id not set.', PHP_EOL;
+    if (!(isset($this->message['mailchimp_grouping_id']))) {
+      echo '- canProcess() - mailchimp_grouping_id not set.', PHP_EOL;
       return FALSE;
     }
     if (!(isset($this->message['mailchimp_group_name']))) {
       echo '- canProcess() - mailchimp_group_name not set.', PHP_EOL;
+      return FALSE;
+    }
+
+    if (isset($this->message['application_id']) && $this->message['application_id'] != 'US') {
+      echo '- canProcess() - application_id not supported: ' . $this->message['application_id'], PHP_EOL;
       return FALSE;
     }
 
@@ -105,23 +110,23 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
   }
 
   /**
-   * Construct values for submission to email service.
+   * Construct values for submission to MailChimp interest groups.
+   *
+   * Campaigns2013 (10621), Campaigns2014 (10637) or Campaigns2015 (10641)
    *
    * @param array $message
    *   The message to process based on what was collected from the queue being processed.
    */
   protected function setter($message) {
 
-    // @todo: group by country rather than mailchimp_list_id
-
-    $this->waitingSubmissions[$this->message['mailchimp_list_id']][] = array(
+    $this->waitingSubmissions[] = array(
       'email' => array(
         'email' => $this->message['email']
       ),
       'merge_vars' => array(
         'groupings' => array(
           0 => array(
-            'id' => $this->message['mailchimp_grouping_id'], // Campaigns2013 (10621), Campaigns2014 (10637) or Campaigns2015 (10641)
+            'id' => $this->message['mailchimp_grouping_id'],
             'groups' => array($this->message['mailchimp_group_name']),
           )
         ),
@@ -130,67 +135,10 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
   }
 
   /**
-   * process(): Send composed settings to Mandrill to trigger transactional email message being sent.
+   * process(): Nothing to do related to processing of a single interest group
+   * submission to MailChimp.
    */
   protected function process() {
-
-    $results .= $this->submitToMailChimp($mAPIKey, $mlid, $composedSignupList, $mbDeliveryTags);
-
-    foreach ($this->waitingSubmissions as $mlid => $signups) {
-      // Batches of users by MailChimp List ID ($mlid)
-      // Assign MailChimp API Key based on user application_id signup source. Assume each
-      // $mlid batch will have the same application_id value. UK users are submitted to
-      // seperate MailChimp account.
-      if ($signups[0]['application_id'] == 'UK') {
-        $mAPIKey = $this->settings['mailchimp_uk_apikey'];
-      }
-      else {
-        $mAPIKey = $this->settings['mailchimp_apikey'];
-      }
-      list($composedSignupList, $mbDeliveryTags) = $this->composeSignupSubmission($signups);
-      if (count($composedSignupList) < 1) {
-        $results .= 'No new campaign signups accounts to submit to MailChimp list' . $mlid . '.' . PHP_EOL;
-        continue;
-      }
-
-      $results .= $this->submitToMailChimp($mAPIKey, $mlid, $composedSignupList, $mbDeliveryTags);
-
-    }
-
-  }
-
- /**
-   * Format email list to meet MailChimp API requirements for batchSubscribe
-   *
-   * @param array $campaignSignups
-   *   The list of email address to be formatted
-   *
-   * @return array
-   *   Array of email addresses formatted to meet MailChimp API requirements.
-   */
-  private function composeSignupSubmission($campaignSignups = array()) {
-
-    $composedSubscriberList = array();
-    $mbDeliveryTags = array();
-
-    foreach ($campaignSignups as $campaignSignup) {
-      $composedSubscriberList[] = array(
-        'email' => array(
-          'email' => $campaignSignup['email']
-        ),
-        'merge_vars' => array(
-          'groupings' => array(
-            0 => array(
-              'id' => $campaignSignup['mailchimp_grouping_id'], // Campaigns2013 (10621), Campaigns2014 (10637) or Campaigns2015 (10641)
-              'groups' => array($campaignSignup['mailchimp_group_name']),
-            )
-          ),
-        ),
-      );
-      $mbDeliveryTags[$campaignSignup['email']] = $campaignSignup['mb_delivery_tag'];
-    }
-
-    return array($composedSubscriberList, $mbDeliveryTags);
   }
 
   /**
@@ -203,8 +151,6 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
     // @todo: Throttle the number of consumers running. Based on the number of messages
     // waiting to be processed start / stop consumers. Make "reactive"!
     $queueMessages = parent::queueStatus('userRegistrationQueue');
-    echo '- queueMessages ready: ' . $queueMessages['ready'], PHP_EOL;
-    echo '- queueMessages unacked: ' . $queueMessages['unacked'], PHP_EOL;
 
     $waitingSubmissionsCount = $this->waitingSubmissionsCount($this->waitingSubmissions);
     echo '- waitingSubmissionsCount: ' . $waitingSubmissionsCount, PHP_EOL;
@@ -240,16 +186,13 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
 
     // Grouped by country and list_ids to define Mailchimp account and which list to subscribe to
     foreach ($this->waitingSubmissions as $country => $lists) {
-      $country = strtolower($country);
-      if (!(isset($this->mbcURMailChimp[$country]))) {
-        $country = 'global';
-      }
-      foreach ($lists as $listID => $submissions) {
+
+
+
 
         try {
-          echo '-> submitting country: ' . $country, PHP_EOL;
-          $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
-          $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $composedBatch);
+          $composedBatch = $this->mbcURMailChimp['US']->composeSubscriberSubmission($submissions);
+          $results = $this->mbcURMailChimp['US']->submitBatchSubscribe($listID, $composedBatch);
           if (isset($results['error_count']) && $results['error_count'] > 0) {
             $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
             $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
@@ -263,6 +206,40 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
 
     }
 
+  }
+
+  /**
+   * Format email list to meet MailChimp API requirements for batchSubscribe
+   *
+   * @param array $campaignSignups
+   *   The list of email address to be formatted
+   *
+   * @return array
+   *   Array of email addresses formatted to meet MailChimp API requirements.
+   */
+  private function composeSignupSubmission($campaignSignups = array()) {
+
+    $composedSubscriberList = array();
+    $mbDeliveryTags = array();
+
+    foreach ($campaignSignups as $campaignSignup) {
+      $composedSubscriberList[] = array(
+        'email' => array(
+          'email' => $campaignSignup['email']
+        ),
+        'merge_vars' => array(
+          'groupings' => array(
+            0 => array(
+              'id' => $campaignSignup['mailchimp_grouping_id'], // Campaigns2013 (10621), Campaigns2014 (10637) or Campaigns2015 (10641)
+              'groups' => array($campaignSignup['mailchimp_group_name']),
+            )
+          ),
+        ),
+      );
+      $mbDeliveryTags[$campaignSignup['email']] = $campaignSignup['mb_delivery_tag'];
+    }
+
+    return array($composedSubscriberList, $mbDeliveryTags);
   }
 
   /**
