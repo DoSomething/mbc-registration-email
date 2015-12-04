@@ -83,13 +83,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_CampaignSignup_Consumer->consumeUserRegistrationQueue() START -------', PHP_EOL;
 
     parent::consumeQueue($payload);
-
-    echo '** Consuming: ' . $this->message['email'];
-    if (isset($this->message['user_country'])) {
-      echo ' from: ' .  $this->message['user_country'], PHP_EOL;
-    } else {
-      echo ', user_country not defined.', PHP_EOL;
-    }
+    $this->logConsumption('email');
 
     if ($this->canProcess()) {
 
@@ -119,7 +113,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     if ($this->canProcessSubmissions()) {
 
       $this->processSubmissions();
-      echo '- unset $this->waitingSubmissions: ' . count($this->waitingSubmissions), PHP_EOL . PHP_EOL;
+      echo '- unset $this->waitingSubmissions: ' . $this->waitingSubmissionsCount($this->waitingSubmissions), PHP_EOL . PHP_EOL;
       unset($this->waitingSubmissions);
     }
 
@@ -292,8 +286,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     // @todo: Throttle the number of consumers running. Based on the number of messages
     // waiting to be processed start / stop consumers. Make "reactive"!
     $queueMessages = parent::queueStatus('userRegistrationQueue');
-    echo '- queueMessages ready: ' . $queueMessages['ready'], PHP_EOL;
-    echo '- queueMessages unacked: ' . $queueMessages['unacked'], PHP_EOL;
 
     $waitingSubmissionsCount = $this->waitingSubmissionsCount($this->waitingSubmissions);
     echo '- waitingSubmissionsCount: ' . $waitingSubmissionsCount, PHP_EOL;
@@ -352,7 +344,10 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   }
 
   /**
-   * countryFromTemplateName(): Extract country code from email template string. The last characters in string are country specific.
+   * countryFromTemplateName(): Extract country code from email template string. The last characters in string are
+   * country specific. If last character is "-" the template name is invalid, default to "US" as country.
+   *
+   * @todo: Move method to MB_Toolbox class.
    *
    * @param string $emailTemplate
    *   The name of the template defined in the message transactional request.
@@ -362,8 +357,15 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    */
   protected function countryFromTemplateName($emailTemplate) {
 
-    $templateBits = explode('-', $emailTemplate);
-    $country = $templateBits[count($templateBits) - 1];
+    // Trap NULL values for country code. Ex: "mb-cgg2015-vote-"
+    if (substr($emailTemplate, strlen($emailTemplate) - 1) == "-") {
+      echo '- WARNING countryFromTemplateName() defaulting to country: US as template name was invalid. $emailTemplate: ' . $emailTemplate, PHP_EOL;
+      $country = 'US';
+    }
+    else {
+      $templateBits = explode('-', $emailTemplate);
+      $country = $templateBits[count($templateBits) - 1];
+    }
 
     return $country;
   }
@@ -387,6 +389,26 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     }
 
     return $count;
+  }
+
+  /**
+   * logConsumption(): Extend to log the status of processing a specific message
+   * element as well as the user_country and country.
+   *
+   * @param string $targetName
+   */
+  protected function logConsumption($targetName) {
+
+    if (isset($this->message[$targetName]) && $targetName != NULL) {
+      echo '** Consuming ' . $targetName . ': ' . $this->message[$targetName];
+      if (isset($this->message['user_country'])) {
+        echo ' from: ' .  $this->message['user_country'] . ' doing: ' . $this->message['activity'], PHP_EOL;
+      } else {
+        echo ', user_country not defined.', PHP_EOL;
+      }
+    } else {
+      echo '- logConsumption tagetName: "' .$targetName . '" not defined.', PHP_EOL;
+    }
   }
 
 }
