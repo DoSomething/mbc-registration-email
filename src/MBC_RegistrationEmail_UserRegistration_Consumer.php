@@ -36,7 +36,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   protected $mbcURMailChimp;
 
   /**
-   * One submission to be complited as part of batch submission to MailChimp.
+   * One submission, compiled to make up a part of batch submission to MailChimp.
    */
   protected $submission = [];
 
@@ -45,13 +45,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    * @var array $waitingSubmissions
    */
   protected $waitingSubmissions;
-
-  /**
-   * Submission message objects used to send AckBacks once message entry has been
-   * successfully submitted to MailChimp.
-   * @var array $waitingSubmissionsAcks
-   */
-  protected $waitingSubmissionsAcks;
 
   /**
    * Submissions to be sent to MailChimp, indexed by MailChimp API and email address.
@@ -68,7 +61,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     $this->mbcURMailChimp = $this->mbConfig->getProperty('mbcURMailChimp_Objects');
     $this->submission = [];
     $this->waitingSubmissions = [];
-    $this->waitingSubmissionsAcks = [];
     $this->lastSubmissionStamp = time();
   }
 
@@ -91,7 +83,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
         $this->setter($this->message);
         $this->process();
-        $this->messageBroker->sendAck($this->message['payload']);
       }
       catch(Exception $e) {
         echo 'Error sending email address: ' . $this->message['email'] . ' to MailChimp for user signup. Error: ' . $e->getMessage();
@@ -202,7 +193,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     $this->submission = [];
     $this->submission['email'] = $message['email'];
 
-    // Deal with old affiliate sites and not have user_country set
+    // Deal with old affiliate sites and messages that do not have user_country set
     if ($message['application_id'] == 'GB' || $message['application_id'] == 'UK') {
       $message['user_country'] = 'uk';
     }
@@ -269,11 +260,13 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     // object and related account to submit to.
 
     // @todo: Root out apps that are not setting the user_country and/or mailchimp_list_id
+    // - mbc-user-import, 20 Nov 2015
 
     $country = $this->submission['user_country'];
     $mailchimp_list_id = $this->submission['mailchimp_list_id'];
     $this->waitingSubmissions[$country][$mailchimp_list_id][] = $this->submission;
     unset($this->submission);
+    $this->messageBroker->sendAck($this->message['payload']);
   }
 
   /**
@@ -397,7 +390,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    *
    * @param string $targetName
    */
-  protected function logConsumption($targetName) {
+  protected function logConsumption($targetName = NULL) {
 
     if (isset($this->message[$targetName]) && $targetName != NULL) {
       echo '** Consuming ' . $targetName . ': ' . $this->message[$targetName];
