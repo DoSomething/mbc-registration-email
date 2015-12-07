@@ -36,7 +36,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   protected $mbcURMailChimp;
 
   /**
-   * One submission to be complited as part of batch submission to MailChimp.
+   * One submission, compiled to make up a part of batch submission to MailChimp.
    */
   protected $submission = [];
 
@@ -45,13 +45,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    * @var array $waitingSubmissions
    */
   protected $waitingSubmissions;
-
-  /**
-   * Submission message objects used to send AckBacks once message entry has been
-   * successfully submitted to MailChimp.
-   * @var array $waitingSubmissionsAcks
-   */
-  protected $waitingSubmissionsAcks;
 
   /**
    * Submissions to be sent to MailChimp, indexed by MailChimp API and email address.
@@ -68,7 +61,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     $this->mbcURMailChimp = $this->mbConfig->getProperty('mbcURMailChimp_Objects');
     $this->submission = [];
     $this->waitingSubmissions = [];
-    $this->waitingSubmissionsAcks = [];
     $this->lastSubmissionStamp = time();
   }
 
@@ -83,13 +75,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_CampaignSignup_Consumer->consumeUserRegistrationQueue() START -------', PHP_EOL;
 
     parent::consumeQueue($payload);
-
-    echo '** Consuming: ' . $this->message['email'];
-    if (isset($this->message['user_country'])) {
-      echo ' from: ' .  $this->message['user_country'], PHP_EOL;
-    } else {
-      echo ', user_country not defined.', PHP_EOL;
-    }
+    $this->logConsumption('email');
 
     if ($this->canProcess()) {
 
@@ -97,7 +83,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
         $this->setter($this->message);
         $this->process();
-        $this->messageBroker->sendAck($this->message['payload']);
       }
       catch(Exception $e) {
         echo 'Error sending email address: ' . $this->message['email'] . ' to MailChimp for user signup. Error: ' . $e->getMessage();
@@ -119,7 +104,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     if ($this->canProcessSubmissions()) {
 
       $this->processSubmissions();
-      echo '- unset $this->waitingSubmissions: ' . count($this->waitingSubmissions), PHP_EOL . PHP_EOL;
+      echo '- unset $this->waitingSubmissions: ' . $this->waitingSubmissionsCount($this->waitingSubmissions), PHP_EOL . PHP_EOL;
       unset($this->waitingSubmissions);
     }
 
@@ -208,7 +193,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     $this->submission = [];
     $this->submission['email'] = $message['email'];
 
-    // Deal with old affiliate sites and not have user_country set
+    // Deal with old affiliate sites and messages that do not have user_country set
     if ($message['application_id'] == 'GB' || $message['application_id'] == 'UK') {
       $message['user_country'] = 'uk';
     }
@@ -275,11 +260,13 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     // object and related account to submit to.
 
     // @todo: Root out apps that are not setting the user_country and/or mailchimp_list_id
+    // - mbc-user-import, 20 Nov 2015
 
     $country = $this->submission['user_country'];
     $mailchimp_list_id = $this->submission['mailchimp_list_id'];
     $this->waitingSubmissions[$country][$mailchimp_list_id][] = $this->submission;
     unset($this->submission);
+    $this->messageBroker->sendAck($this->message['payload']);
   }
 
   /**
@@ -292,8 +279,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     // @todo: Throttle the number of consumers running. Based on the number of messages
     // waiting to be processed start / stop consumers. Make "reactive"!
     $queueMessages = parent::queueStatus('userRegistrationQueue');
-    echo '- queueMessages ready: ' . $queueMessages['ready'], PHP_EOL;
-    echo '- queueMessages unacked: ' . $queueMessages['unacked'], PHP_EOL;
 
     $waitingSubmissionsCount = $this->waitingSubmissionsCount($this->waitingSubmissions);
     echo '- waitingSubmissionsCount: ' . $waitingSubmissionsCount, PHP_EOL;
@@ -337,6 +322,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
           $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
           $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $composedBatch);
           if (isset($results['error_count']) && $results['error_count'] > 0) {
+            echo '- ERRORS enountered in MailChimp submission... processing.', PHP_EOL;
             $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
             $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
           }
@@ -352,7 +338,10 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   }
 
   /**
-   * countryFromTemplateName(): Extract country code from email template string. The last characters in string are country specific.
+   * countryFromTemplateName(): Extract country code from email template string. The last characters in string are
+   * country specific. If last character is "-" the template name is invalid, default to "US" as country.
+   *
+   * @todo: Move method to MB_Toolbox class.
    *
    * @param string $emailTemplate
    *   The name of the template defined in the message transactional request.
@@ -362,8 +351,15 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    */
   protected function countryFromTemplateName($emailTemplate) {
 
-    $templateBits = explode('-', $emailTemplate);
-    $country = $templateBits[count($templateBits) - 1];
+    // Trap NULL values for country code. Ex: "mb-cgg2015-vote-"
+    if (substr($emailTemplate, strlen($emailTemplate) - 1) == "-") {
+      echo '- WARNING countryFromTemplateName() defaulting to country: US as template name was invalid. $emailTemplate: ' . $emailTemplate, PHP_EOL;
+      $country = 'US';
+    }
+    else {
+      $templateBits = explode('-', $emailTemplate);
+      $country = $templateBits[count($templateBits) - 1];
+    }
 
     return $country;
   }
@@ -387,6 +383,26 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     }
 
     return $count;
+  }
+
+  /**
+   * logConsumption(): Extend to log the status of processing a specific message
+   * element as well as the user_country and country.
+   *
+   * @param string $targetName
+   */
+  protected function logConsumption($targetName = NULL) {
+
+    if (isset($this->message[$targetName]) && $targetName != NULL) {
+      echo '** Consuming ' . $targetName . ': ' . $this->message[$targetName];
+      if (isset($this->message['user_country'])) {
+        echo ' from: ' .  $this->message['user_country'] . ' doing: ' . $this->message['activity'], PHP_EOL;
+      } else {
+        echo ', user_country not defined.', PHP_EOL;
+      }
+    } else {
+      echo '- logConsumption tagetName: "' .$targetName . '" not defined.', PHP_EOL;
+    }
   }
 
 }

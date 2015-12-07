@@ -15,6 +15,7 @@
  */
 use DoSomething\MB_Toolbox\MB_Configuration;
 use DoSomething\MB_Toolbox\MB_RabbitMQManagementAPI;
+use DoSomething\MB_Toolbox\MB_MailChimp;
 use DoSomething\StatHat\Client as StatHat;
 
 // Load configuration settings common to the Message Broker system
@@ -50,12 +51,28 @@ $rabbitCredentials = $mbConfig->getProperty('rabbit_credentials');
 $messageBrokerConfig = $mbConfig->getProperty('messageBroker_config');
 $mbConfig->setProperty('messageBroker', new MessageBroker($rabbitCredentials, $messageBrokerConfig));
 
+$mbConfig->setProperty('mbRabbitMQManagementAPI', new MB_RabbitMQManagementAPI([
+  'domain' => getenv("MB_RABBITMQ_MANAGEMENT_API_HOST"),
+  'port' => getenv('MB_RABBITMQ_MANAGEMENT_API_PORT'),
+  'vhost' => getenv('MB_RABBITMQ_MANAGEMENT_API_VHOST'),
+  'username' => getenv('MB_RABBITMQ_MANAGEMENT_API_USERNAME'),
+  'password' => getenv('MB_RABBITMQ_MANAGEMENT_API_PASSWORD')
+]));
+
 $mbConfig->setProperty('mailchimpAPIkeys', [
   'country' => [
     'global' => getenv("MAILCHIMP_APIKEY"),
     'us'     => getenv("MAILCHIMP_APIKEY"),
+    'gb'     => getenv("MAILCHIMP_UK_APIKEY"),
     'uk'     => getenv("MAILCHIMP_UK_APIKEY"),
     'mx'     => getenv("MAILCHIMP_MX_APIKEY"),
     'br'     => getenv("MAILCHIMP_BR_APIKEY"),
   ]]
 );
+
+$mailchimpAPIKeys = $mbConfig->getProperty('mailchimpAPIkeys');
+$mcObjects = [];
+foreach ($mailchimpAPIKeys['country'] as $country => $key) {
+  $mcObjects[$country] = new MB_MailChimp($key);
+}
+$mbConfig->setProperty('mbcURMailChimp_Objects', $mcObjects);
