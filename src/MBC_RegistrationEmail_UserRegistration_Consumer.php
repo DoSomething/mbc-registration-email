@@ -322,6 +322,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
           $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
           $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $composedBatch);
           if (isset($results['error_count']) && $results['error_count'] > 0) {
+            echo '- ERRORS enountered in MailChimp submission... processing.', PHP_EOL;
             $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
             $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
           }
