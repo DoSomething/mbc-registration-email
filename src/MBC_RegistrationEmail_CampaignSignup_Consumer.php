@@ -20,7 +20,7 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
   /**
    * The number of queue entries to process in each session
    */
-  const BATCH_SIZE = 2;
+  const BATCH_SIZE = 50;
 
   /*
    * The amount of seconds to wait in an idle state before processing existing submissions even
