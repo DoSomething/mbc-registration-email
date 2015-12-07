@@ -20,10 +20,16 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
   /**
    * The number of queue entries to process in each session
    */
-  const BATCH_SIZE = 50;
+  const BATCH_SIZE = 2;
+
+  /*
+   * The amount of seconds to wait in an idle state before processing existing submissions even
+   * if the batch size has not been reached.
+   */
+  const IDLE_TIME = 300;
 
   /**
-   * One submission , compiled to make up a part of batch submission to MailChimp.
+   * One submission, compiled to make up a part of batch submission to MailChimp.
    */
   protected $submission = [];
 
@@ -143,6 +149,9 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
   protected function setter($message) {
 
     $this->submission = [];
+    $this->submission['email'] = $message['email'];
+    $this->submission['mailchimp_grouping_id'] = $this->message['mailchimp_grouping_id'];
+    $this->submission['mailchimp_group_name'] = $this->message['mailchimp_group_name'];
 
     // Deal with old affiliate sites and messages that do not have user_country set
     if ($message['application_id'] == 'GB' || $message['application_id'] == 'UK') {
@@ -166,7 +175,16 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
       $this->submission['mailchimp_list_id'] = 'fd48935715';
     }
     elseif (isset($message['mailchimp_list_id'])) {
-      $this->submission['mailchimp_list_id'] = $message['mailchimp_list_id'];
+
+      // @todo: HACK, cleanup later. The dosomething_signup_get_mailchimp_list_id() function in the Drupal app appears to have had a bug
+      // Where it was assigning the International MailChimp list to users with user_language : 'en'
+      if ($message['mailchimp_list_id'] == '8e7844f6dd') {
+        $this->submission['mailchimp_list_id'] = 'f2fab1dfd4';
+      }
+      else {
+        $this->submission['mailchimp_list_id'] = $message['mailchimp_list_id'];
+      }
+
     }
     else {
       echo '- WARNING: mailchimp_list_id not set, defaulting to general US list.', PHP_EOL;
@@ -192,13 +210,13 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
     // Structure define by MailChip API: https://apidocs.mailchimp.com/api/2.0/lists/batch-subscribe.php
     $this->submission['composed'] = array(
       'email' => array(
-        'email' => $this->message['email']
+        'email' => $this->submission['email']
       ),
       'merge_vars' => array(
         'groupings' => array(
           0 => array(
-            'id' => $this->message['mailchimp_grouping_id'],
-            'groups' => array($this->message['mailchimp_group_name']),
+            'id' => $this->submission['mailchimp_grouping_id'],
+            'groups' => array($this->submission['mailchimp_group_name']),
           )
         ),
       ),
@@ -263,7 +281,9 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
           echo '-> submitting country: ' . $country, PHP_EOL;
           $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $submissions);
           if (isset($results['error_count']) && $results['error_count'] > 0) {
-            echo '- processSubmissions() submitBatchSubscribe ERROR: ' . print_r($results, TRUE), PHP_EOL;
+            echo '- ERRORS enountered in MailChimp submission... processing.', PHP_EOL;
+            $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
+            $processSubmissionErrors->processSubmissionErrors($results['errors'], $submissions);
           }
         }
         catch(Exception $e) {
