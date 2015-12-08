@@ -52,6 +52,10 @@ $rabbitCredentials = $mbConfig->getProperty('rabbit_credentials');
 $messageBrokerConfig = $mbConfig->getProperty('messageBroker_config');
 $mbConfig->setProperty('messageBroker', new MessageBroker($rabbitCredentials, $messageBrokerConfig));
 
+// Manage re and un subscribes as reported by MailChimp response to initial subscribes
+$mbRabbitConfig_Subscribes = $mbConfig->constructRabbitConfig('transactionalExchange', array('userMailchimpStatusQueue'));
+$mbConfig->setProperty('messageBroker_Subscribes', new MessageBroker($rabbitCredentials, $mbRabbitConfig_Subscribes));
+
 $mbConfig->setProperty('mbRabbitMQManagementAPI', new MB_RabbitMQManagementAPI([
   'domain' => getenv("MB_RABBITMQ_MANAGEMENT_API_HOST"),
   'port' => getenv('MB_RABBITMQ_MANAGEMENT_API_PORT'),
