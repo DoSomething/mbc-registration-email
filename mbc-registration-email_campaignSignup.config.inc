@@ -16,6 +16,7 @@
 use DoSomething\MB_Toolbox\MB_Configuration;
 use DoSomething\MB_Toolbox\MB_RabbitMQManagementAPI;
 use DoSomething\MB_Toolbox\MB_MailChimp;
+use DoSomething\MB_Toolbox\MB_Toolbox;
 use DoSomething\StatHat\Client as StatHat;
 
 // Load configuration settings common to the Message Broker system
@@ -76,3 +77,5 @@ foreach ($mailchimpAPIKeys['country'] as $country => $key) {
   $mcObjects[$country] = new MB_MailChimp($key);
 }
 $mbConfig->setProperty('mbcURMailChimp_Objects', $mcObjects);
+
+$mbConfig->setProperty('mbToolbox', new MB_Toolbox());
