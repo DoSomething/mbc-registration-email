@@ -267,17 +267,18 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
   /**
    * process(): Gather message settings into waitingSubmissions array for batch processing.
+   *
+   *  Add email and related message details grouped by country. The country defines which
+   *  MailChimp object and related account to submit to.
+   *
+   *  @todo: Root out apps that are not setting the user_country and/or mailchimp_list_id
+   *    - mbc-user-import, 20 Nov 2015
    */
   protected function process() {
 
-    // Add email and related message details grouped by country. The country defines which MailChimp
-    // object and related account to submit to.
-
-    // @todo: Root out apps that are not setting the user_country and/or mailchimp_list_id
-    // - mbc-user-import, 20 Nov 2015
-
     $country = $this->submission['user_country'];
     $mailchimp_list_id = $this->submission['mailchimp_list_id'];
+
     $this->waitingSubmissions[$country][$mailchimp_list_id][] = $this->submission;
     unset($this->submission);
     $this->messageBroker->sendAck($this->message['payload']);
