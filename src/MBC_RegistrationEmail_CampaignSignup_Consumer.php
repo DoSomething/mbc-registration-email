@@ -29,6 +29,12 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
   const IDLE_TIME = 300;
 
   /**
+   * A collection of tools used by all of the Message Broker applications.
+   * @var object $mbToolbox
+   */
+   private $mbToolbox;
+
+  /**
    * One submission, compiled to make up a part of batch submission to MailChimp.
    */
   protected $submission = [];
@@ -52,6 +58,7 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
 
     parent::__construct();
     $this->mbcURMailChimp = $this->mbConfig->getProperty('mbcURMailChimp_Objects');
+    $this->mbToolbox = $this->mbConfig->getProperty('mbToolbox');
     $this->submission = [];
     $this->waitingSubmissions = [];
     $this->lastSubmissionStamp = time();
@@ -160,7 +167,7 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
 
     // Extract user_country if not set or default to "US".
     if (!(isset($message['user_country'])) && isset($message['email_template'])) {
-      $message['user_country'] = strtolower($this->countryFromTemplateName($message['email_template']));
+      $message['user_country'] = strtolower($this->mbToolbox->countryFromTemplateName($message['email_template']));
     }
     elseif (isset($message['user_country'])) {
        $this->submission['user_country'] = strtolower($message['user_country']);
