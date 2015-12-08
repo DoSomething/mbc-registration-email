@@ -7,6 +7,7 @@ namespace DoSomething\MBC_RegistrationEmail;
 
 use DoSomething\MB_Toolbox\MB_Configuration;
 use DoSomething\MBStatTracker\StatHat;
+use DoSomething\MB_Toolbox\MB_Toolbox;
 use DoSomething\MB_Toolbox\MB_Toolbox_BaseConsumer;
 use DoSomething\MB_Toolbox\MB_MailChimp;
 use \Exception;
@@ -28,6 +29,12 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    * if the batch size has not been reached.
    */
   const IDLE_TIME = 300;
+
+  /**
+   * A collection of tools used by all of the Message Broker applications.
+   * @var object $mbToolbox
+   */
+   private $mbToolbox;
 
   /**
    * MailChimp objects indexed by supported country codes.
@@ -59,6 +66,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     parent::__construct();
     $this->mbcURMailChimp = $this->mbConfig->getProperty('mbcURMailChimp_Objects');
+    $this->mbToolbox = $this->mbConfig->getProperty('mbToolbox');
     $this->submission = [];
     $this->waitingSubmissions = [];
     $this->lastSubmissionStamp = time();
@@ -200,7 +208,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     // Extract user_country if not set or default to "US".
     if (!(isset($message['user_country'])) && isset($message['email_template'])) {
-      $message['user_country'] = strtolower($this->countryFromTemplateName($message['email_template']));
+      $message['user_country'] = strtolower($this->mbToolbox->countryFromTemplateName($message['email_template']));
     }
     elseif (isset($message['user_country'])) {
        $this->submission['user_country'] = strtolower($message['user_country']);
@@ -341,33 +349,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     }
     $this->lastSubmissionStamp = time();
-  }
-
-  /**
-   * countryFromTemplateName(): Extract country code from email template string. The last characters in string are
-   * country specific. If last character is "-" the template name is invalid, default to "US" as country.
-   *
-   * @todo: Move method to MB_Toolbox class.
-   *
-   * @param string $emailTemplate
-   *   The name of the template defined in the message transactional request.
-   *
-   * @return string $country
-   *   A two letter country code.
-   */
-  protected function countryFromTemplateName($emailTemplate) {
-
-    // Trap NULL values for country code. Ex: "mb-cgg2015-vote-"
-    if (substr($emailTemplate, strlen($emailTemplate) - 1) == "-") {
-      echo '- WARNING countryFromTemplateName() defaulting to country: US as template name was invalid. $emailTemplate: ' . $emailTemplate, PHP_EOL;
-      $country = 'US';
-    }
-    else {
-      $templateBits = explode('-', $emailTemplate);
-      $country = $templateBits[count($templateBits) - 1];
-    }
-
-    return $country;
   }
 
   /**
