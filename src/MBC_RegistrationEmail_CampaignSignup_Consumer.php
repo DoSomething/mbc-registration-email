@@ -215,7 +215,7 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
   protected function process() {
 
     // Structure define by MailChip API: https://apidocs.mailchimp.com/api/2.0/lists/batch-subscribe.php
-    $this->submission['composed'] = array(
+    $composedSubmission = array(
       'email' => array(
         'email' => $this->submission['email']
       ),
@@ -231,7 +231,7 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
 
     $country = $this->submission['user_country'];
     $mailchimp_list_id = $this->submission['mailchimp_list_id'];
-    $this->waitingSubmissions[$country][$mailchimp_list_id][] = $this->submission['composed'];
+    $this->waitingSubmissions[$country][$mailchimp_list_id][] = $composedSubmission;
     unset($this->submission);
     $this->messageBroker->sendAck($this->message['payload']);
   }
