@@ -109,7 +109,7 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
 
       $this->processSubmissions();
       echo '- unset $this->waitingSubmissions: ' . $this->waitingSubmissionsCount($this->waitingSubmissions), PHP_EOL . PHP_EOL;
-      unset($this->waitingSubmissions);
+      $this->waitingSubmissions = [];
     }
 
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_CampaignSignup_Consumer->consumeCampaignSignupQueue() END -------', PHP_EOL . PHP_EOL;
@@ -313,7 +313,7 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
    * @return integer $count
    *   The total number of user records combined from all of the countries and their list_ids.
    */
-  protected function waitingSubmissionsCount($waitingSubmissions = NULL) {
+  protected function waitingSubmissionsCount($waitingSubmissions) {
 
     $count = 0;
     foreach ($waitingSubmissions as $country => $list_id) {
