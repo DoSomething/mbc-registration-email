@@ -214,7 +214,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
        $this->submission['user_country'] = strtolower($message['user_country']);
     }
     else {
-      $this->submission['user_country'] = 'us';
+      $this->submission['user_country'] = 'global';
     }
 
     // Use mailchimp_list_id UK List if UK or GB user_country and mailchimp_list_id not defined
@@ -222,18 +222,13 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       echo '- user_country: ' . strtolower($this->submission['user_country']) . ', assigning UK mailchimp_list_id.', PHP_EOL;
       $this->submission['mailchimp_list_id'] = 'fd48935715';
     }
-    // Default to main US list if value is invalid / an array - bug in votingApp
-    elseif (isset($message['mailchimp_list_id']) && is_array($message['mailchimp_list_id'])) {
-      echo 'WARNING: Invalid mailchimp_list_id, not string. Defaulting to US list ID.', PHP_EOL;
-      $this->submission['mailchimp_list_id'] = 'f2fab1dfd4';
-    }
     elseif (isset($message['mailchimp_list_id'])) {
       $this->submission['mailchimp_list_id'] = $message['mailchimp_list_id'];
     }
     // Default to main US list if value not present
     else {
-      echo '- WARNING: mailchimp_list_id not set, defaulting to general US list.', PHP_EOL;
-      $this->submission['mailchimp_list_id'] = 'f2fab1dfd4';
+      echo '- WARNING: mailchimp_list_id not set, defaulting to global list.', PHP_EOL;
+      $this->submission['mailchimp_list_id'] = '8e7844f6dd';
     }
     if (!(isset($this->mbcURMailChimp[$this->submission['user_country']]))) {
       echo '- WARNING: mbcURMailChimp object for ' . $this->submission['user_country'] . ' does not exist, defaulting to global list.', PHP_EOL;
