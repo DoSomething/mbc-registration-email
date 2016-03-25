@@ -74,7 +74,8 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
 
     }
     else {
-      echo '- ' . $this->message['email']['email'] . ' can\'t be processed.', PHP_EOL;
+      echo '- Skipping, can\'t be processed.', PHP_EOL;
+      $this->messageBroker->sendAck($this->message['payload']);
     }
 
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_UserSubscriptions_Consumer->consumeUserMailchimpStatusQueue() END -------', PHP_EOL . PHP_EOL;
@@ -87,7 +88,11 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
    */
   protected function canProcess() {
 
-    if (!(isset($this->message['email']) && !(isset($this->message['email']['email'])))) {
+    if (is_array($this->message['email']) && empty($this->message['email']['email'])) {
+      echo '- canProcess(), email not set.', PHP_EOL;
+      return FALSE;
+    }
+    elseif (empty($this->message['email'])) {
       echo '- canProcess(), email not set.', PHP_EOL;
       return FALSE;
     }
