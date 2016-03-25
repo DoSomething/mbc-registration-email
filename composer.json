@@ -1,7 +1,7 @@
 {
   "name": "mbc-registration-email",
   "type": "project",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "A consumer app for the Message Broker system that consumes entries on the userRegistrationQueue. Queue payload values determine the account created on Mailchimp. Error messages returned about submitted email addresses submitted to Mailchimp are sent to the userMailchimpStatusQueue.",
   "keywords": ["message broker", "mailchimp", "email"],
   "homepage": "https://github.com/DoSomething/mbc-registration-email",
@@ -16,7 +16,7 @@
   "require": {
     "php": ">= 5.3.0",
     "DoSomething/messagebroker-phplib": "0.2.*",
-    "dosomething/mb-toolbox": "0.8.*",
+    "dosomething/mb-toolbox": "0.9.*",
     "drewm/mailchimp-api": "1.*",
     "dosomething/stathat": "1.*"
   },
