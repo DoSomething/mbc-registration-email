@@ -59,7 +59,7 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_UserSubscriptions_Consumer->consumeUserMailchimpStatusQueue() START -------', PHP_EOL;
 
     parent::consumeQueue($payload);
-    echo '** Consuming: ' . $this->message['email']['email'], PHP_EOL;
+    echo '** Consuming: ' . $this->message['email'], PHP_EOL;
 
     if ($this->canProcess()) {
 
@@ -87,7 +87,7 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
    */
   protected function canProcess() {
 
-    if (!(isset($this->message['email']['email']))) {
+    if (!(isset($this->message['email']))) {
       echo '- canProcess(), email not set.', PHP_EOL;
       return FALSE;
     }
@@ -116,7 +116,7 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
   protected function setter($message) {
 
     $this->submission = [];
-    $this->submission['email'] = $message['email']['email'];
+    $this->submission['email'] = $message['email'];
     $this->submission['error'] = $message['error'];
     $this->submission['code'] = $message['code'];
   }
