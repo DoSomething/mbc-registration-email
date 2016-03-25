@@ -57,6 +57,8 @@ $mbConfig->setProperty('mbRabbitMQManagementAPI', new MB_RabbitMQManagementAPI([
   'username' => getenv('MB_RABBITMQ_MANAGEMENT_API_USERNAME'),
   'password' => getenv('MB_RABBITMQ_MANAGEMENT_API_PASSWORD')
 ]));
+$mbRabbitConfig = $mbConfig->constructRabbitConfig('directDeadLetterExchange', ['deadLetterQueue']);
+$mbConfig->setProperty('messageBroker_deadLetter', new MessageBroker($rabbitCredentials, $mbRabbitConfig));
 
 $mbConfig->setProperty('mb_user_api_config', array(
   'host' => getenv("MB_USER_API_HOST"),

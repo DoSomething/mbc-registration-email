@@ -64,6 +64,8 @@ $mbConfig->setProperty('mbRabbitMQManagementAPI', new MB_RabbitMQManagementAPI([
   'username' => getenv('MB_RABBITMQ_MANAGEMENT_API_USERNAME'),
   'password' => getenv('MB_RABBITMQ_MANAGEMENT_API_PASSWORD')
 ]));
+$mbRabbitConfig = $mbConfig->constructRabbitConfig('directDeadLetterExchange', ['deadLetterQueue']);
+$mbConfig->setProperty('messageBroker_deadLetter', new MessageBroker($rabbitCredentials, $mbRabbitConfig));
 
 $mbConfig->setProperty('mailchimpAPIkeys', [
   'country' => [
