@@ -59,13 +59,13 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_UserSubscriptions_Consumer->consumeUserMailchimpStatusQueue() START -------', PHP_EOL;
 
     parent::consumeQueue($payload);
-    echo '** Consuming: ' . $this->message['email'], PHP_EOL;
 
     if ($this->canProcess()) {
 
       try {
 
         $this->setter($this->message);
+        echo '** Consuming: ' . $this->submission['email'], PHP_EOL;
         $this->process();
       }
       catch(Exception $e) {
@@ -87,7 +87,7 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
    */
   protected function canProcess() {
 
-    if (!(isset($this->message['email']))) {
+    if (!(isset($this->message['email']) || !(isset($this->message['email']['email'])))) {
       echo '- canProcess(), email not set.', PHP_EOL;
       return FALSE;
     }
@@ -116,7 +116,15 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
   protected function setter($message) {
 
     $this->submission = [];
-    $this->submission['email'] = $message['email'];
+
+    // @todo: The producer of the error / unsubscribe messages needs to normalize the message format to
+    // always use $message['email'] rather than the MailChimp esoteric format.
+    if (isset($message['email']['email'])) {
+      $this->submission['email'] = $message['email']['email'];
+    }
+    else {
+      $this->submission['email'] = $message['email'];
+    }
     $this->submission['error'] = $message['error'];
     $this->submission['code'] = $message['code'];
   }
