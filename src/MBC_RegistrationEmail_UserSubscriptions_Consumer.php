@@ -87,7 +87,7 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
    */
   protected function canProcess() {
 
-    if (!(isset($this->message['email']) || !(isset($this->message['email']['email'])))) {
+    if (!(isset($this->message['email']) && !(isset($this->message['email']['email'])))) {
       echo '- canProcess(), email not set.', PHP_EOL;
       return FALSE;
     }
