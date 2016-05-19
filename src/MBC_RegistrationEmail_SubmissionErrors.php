@@ -35,6 +35,7 @@ class MBC_RegistrationEmail_SubmissionErrors
     
     $this->mbConfig = MB_Configuration::getInstance();
     $this->messageBroker = $this->mbConfig->getProperty('messageBroker_Subscribes');
+    $this->statHat = $this->mbConfig->getProperty('statHat');
   }
 
   /**
