@@ -79,12 +79,12 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_CampaignSignup_Consumer->consumeCampaignSignupQueue() START -------', PHP_EOL;
 
     parent::consumeQueue($payload);
-    parent::logConsumption('email');
 
     if ($this->canProcess()) {
 
       try {
 
+        parent::logConsumption(['email']);
         $this->setter($this->message);
         $this->process();
       }

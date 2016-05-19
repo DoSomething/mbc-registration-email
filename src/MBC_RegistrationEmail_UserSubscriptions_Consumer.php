@@ -63,9 +63,8 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
     if ($this->canProcess()) {
 
       try {
-
+        parent::logConsumption(['email']);
         $this->setter($this->message);
-        echo '** Consuming: ' . $this->submission['email'], PHP_EOL;
         $this->process();
       }
       catch(Exception $e) {
