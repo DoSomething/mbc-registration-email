@@ -6,7 +6,7 @@
 namespace DoSomething\MBC_RegistrationEmail;
 
 use DoSomething\MB_Toolbox\MB_Configuration;
-use DoSomething\MBStatTracker\StatHat;
+use DoSomething\StatHat\Client as StatHat;
 use DoSomething\MB_Toolbox\MB_Toolbox_BaseConsumer;
 use DoSomething\MB_Toolbox\MB_MailChimp;
 use \Exception;
@@ -90,6 +90,7 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
       }
       catch(Exception $e) {
         echo 'Error sending email address: ' . $this->message['email'] . ' to MailChimp for campaign signup / interest group assignment. Error: ' . $e->getMessage();
+        $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_CampaignSignup_Consumer: Exception', 1);
 
         // @todo: Send copy of message to "dead message queue" with details of the original processing: date,
         // origin queue, processing app. The "dead messages" queue can be used to monitor health.
@@ -232,6 +233,7 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
     $country = $this->submission['user_country'];
     $mailchimp_list_id = $this->submission['mailchimp_list_id'];
     $this->waitingSubmissions[$country][$mailchimp_list_id][] = $composedSubmission;
+    $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_CampaignSignup_Consumer: process', 1);
     unset($this->submission);
     $this->messageBroker->sendAck($this->message['payload']);
   }
@@ -286,8 +288,10 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
 
         try {
           echo '-> submitting country: ' . $country, PHP_EOL;
+          $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_CampaignSignup_Consumer: processSubmissions: country: '.$country, 1);
           $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $submissions);
           if (isset($results['error_count']) && $results['error_count'] > 0) {
+            $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_CampaignSignup_Consumer: processSubmissions: error_count > 0' , 1);
             echo '- ERRORS enountered in MailChimp submission... processing.', PHP_EOL;
             $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
             $processSubmissionErrors->processSubmissionErrors($results['errors'], $submissions);
