@@ -6,7 +6,7 @@
 namespace DoSomething\MBC_RegistrationEmail;
 
 use DoSomething\MB_Toolbox\MB_Configuration;
-use DoSomething\MBStatTracker\StatHat;
+use DoSomething\StatHat\Client as StatHat;
 use \Exception;
 
 /**
@@ -45,7 +45,8 @@ class MBC_RegistrationEmail_SubmissionErrors
     $routingKey = 'user.mailchimp.error';
 
     // Add extries for each error encountered to the directUserStatusExchange
-    foreach ($errors as $errorDetails){
+    foreach ($errors as $errorDetails) {
+      $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_SubmissionErrors: error: '. $errorDetails['code'], 1);
       // Resubscribe if email address is reported as unsubscribed - the
       // transaction / user signing up for a campaign is confirmation that
       // they want to resubscribe.
