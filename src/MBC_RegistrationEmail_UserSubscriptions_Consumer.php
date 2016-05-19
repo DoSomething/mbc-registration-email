@@ -7,7 +7,7 @@
 namespace DoSomething\MBC_RegistrationEmail;
 
 use DoSomething\MB_Toolbox\MB_Configuration;
-use DoSomething\MBStatTracker\StatHat;
+use DoSomething\StatHat\Client as StatHat;
 use DoSomething\MB_Toolbox\MB_Toolbox_BaseConsumer;
 use DoSomething\MB_Toolbox\MB_Toolbox_cURL;
 use \Exception;
@@ -70,6 +70,7 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
       }
       catch(Exception $e) {
         echo 'Error unsubscribing email address: ' . $this->message['email'] . ' to mb-user-api. Error: ' . $e->getMessage();
+        $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_UserSubscriptions: Exception', 1);
       }
 
     }
@@ -149,9 +150,11 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
 
     if ($results[1] == 200) {
       $this->messageBroker->sendAck($this->message['payload']);
+      $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_UserSubscriptions - unsubscribe', 1);
     }
     else {
-      echo '** Error banning user: ' . print_r($post, TRUE), PHP_EOL;
+      echo '** Error unsubscribing user: ' . print_r($post, TRUE), PHP_EOL;
+      $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_UserSubscriptions - error', 1);
     }
   }
 
