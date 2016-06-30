@@ -63,7 +63,7 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
     if ($this->canProcess()) {
 
       try {
-        parent::logConsumption(['email']);
+        $this->logConsumption(['email']);
         $this->setter($this->message);
         $this->process();
       }
@@ -155,6 +155,21 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
       echo '** Error unsubscribing user: ' . print_r($post, TRUE), PHP_EOL;
       $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_UserSubscriptions - error', 1);
     }
+  }
+
+  /*
+   * logConsumption(): Log the status of processing a specific message element.
+   *
+   * @param array $targetNames
+   */
+  protected function logConsumption($targetNames = null) {
+
+    if ($targetNames != null && is_array($targetNames)) {
+      foreach ($targetNames as $targetName) {
+        echo '** Consuming ' . $targetName . ': ' . $this->message[$targetName];
+      }
+    }
+
   }
 
 }
