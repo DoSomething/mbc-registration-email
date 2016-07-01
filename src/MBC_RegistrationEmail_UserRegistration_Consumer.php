@@ -219,6 +219,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     // No longer put Brazil (br) or Mexico (mx) users into separate MailChimp lists. Add to global list.
     if ($message['user_country'] == 'br' || $message['user_country'] == 'mx') {
+      echo '- User country: '. strtoupper($message['user_country']) . ' reset to global.', PHP_EOL;
       $this->submission['user_country'] = 'global';
     }
     // Extract user_country if not set or default to "US".
@@ -239,6 +240,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     }
     // No longer put Brazil (br) or Mexico (mx) users into separate MailChimp lists. Add to global list.
     elseif ($this->submission['user_country'] == 'br' || $this->submission['user_country'] == 'mx') {
+      echo '- User BR or MX mailchimp_list_id adjusted to global.', PHP_EOL;
       $this->submission['mailchimp_list_id'] = self::GLOBAL_MAILCHIMP_LIST_ID;
     }
     elseif (isset($message['mailchimp_list_id'])) {
