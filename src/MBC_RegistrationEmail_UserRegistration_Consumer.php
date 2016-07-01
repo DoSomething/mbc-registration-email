@@ -217,13 +217,13 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       $message['user_country'] = 'uk';
     }
 
-    // Extract user_country if not set or default to "US".
-    if (!(isset($message['user_country'])) && isset($message['email_template'])) {
-      $message['user_country'] = strtolower($this->mbToolbox->countryFromTemplateName($message['email_template']));
-    }
     // No longer put Brazil (br) or Mexico (mx) users into separate MailChimp lists. Add to global list.
-    elseif ($message['user_country'] == 'br' || $message['user_country'] == 'mx') {
+    if ($message['user_country'] == 'br' || $message['user_country'] == 'mx') {
       $this->submission['user_country'] = 'global';
+    }
+    // Extract user_country if not set or default to "US".
+    elseif (!(isset($message['user_country'])) && isset($message['email_template'])) {
+      $message['user_country'] = strtolower($this->mbToolbox->countryFromTemplateName($message['email_template']));
     }
     elseif (isset($message['user_country'])) {
        $this->submission['user_country'] = strtolower($message['user_country']);
