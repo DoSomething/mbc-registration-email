@@ -35,6 +35,11 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    */
   const GLOBAL_MAILCHIMP_LIST_ID = '8e7844f6dd';
 
+  /*
+   * The MailChimp global list ID.
+   */
+  const UK_MAILCHIMP_LIST_ID = 'fd48935715';
+
   /**
    * A collection of tools used by all of the Message Broker applications.
    * @var object $mbToolbox
@@ -216,6 +221,10 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     if (!(isset($message['user_country'])) && isset($message['email_template'])) {
       $message['user_country'] = strtolower($this->mbToolbox->countryFromTemplateName($message['email_template']));
     }
+    // No longer put Brazil (br) or Mexico (mx) users into separate MailChimp lists. Add to global list.
+    elseif ($this->message['user_country'] == 'br' || $this->message['user_country'] == 'mx') {
+      $this->submission['user_country'] = 'global';
+    }
     elseif (isset($message['user_country'])) {
        $this->submission['user_country'] = strtolower($message['user_country']);
     }
@@ -226,11 +235,11 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
     // Use mailchimp_list_id UK List if UK or GB user_country and mailchimp_list_id not defined
     if (!(isset($message['mailchimp_list_id'])) && (strtolower($this->submission['user_country']) == 'uk' || strtolower($this->submission['user_country']) == 'gb')) {
       echo '- user_country: ' . strtolower($this->submission['user_country']) . ', assigning UK mailchimp_list_id.', PHP_EOL;
-      $this->submission['mailchimp_list_id'] = 'fd48935715';
+      $this->submission['mailchimp_list_id'] = self::UK_MAILCHIMP_LIST_ID;
     }
     // No longer put Brazil (br) or Mexico (mx) users into separate MailChimp lists. Add to global list.
     elseif ($this->submission['user_country'] == 'br' || $this->submission['user_country'] == 'mx') {
-      $this->submission['mailchimp_list_id'] = $message['mailchimp_list_id'];
+      $this->submission['mailchimp_list_id'] = self::GLOBAL_MAILCHIMP_LIST_ID;
     }
     elseif (isset($message['mailchimp_list_id'])) {
       $this->submission['mailchimp_list_id'] = $message['mailchimp_list_id'];
@@ -241,7 +250,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       $this->submission['mailchimp_list_id'] = self::GLOBAL_MAILCHIMP_LIST_ID;
     }
     if (!(isset($this->mbcURMailChimp[$this->submission['user_country']]))) {
-      echo '- WARNING: mbcURMailChimp object for ' . $this->submission['user_country'] . ' does not exist, defaulting to global list.', PHP_EOL;
+      echo '- WARNING: mbcURMailChimp object for ' . strtoupper($this->submission['user_country']) . ' does not exist, defaulting to global list.', PHP_EOL;
       $this->submission['user_country'] = 'global';
       $this->submission['mailchimp_list_id'] = self::GLOBAL_MAILCHIMP_LIST_ID;
     }
