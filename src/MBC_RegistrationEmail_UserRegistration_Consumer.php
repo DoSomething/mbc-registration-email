@@ -214,7 +214,10 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     // Deal with old affiliate sites and messages that do not have user_country set
     if ($message['application_id'] == 'GB' || $message['application_id'] == 'UK') {
-      $message['user_country'] = 'uk';
+
+      // Send UK based users to Global list.
+      // $message['user_country'] = 'uk';
+      $message['user_country'] = 'global';
     }
 
     // No longer put Brazil (br) or Mexico (mx) users into separate MailChimp lists. Add to global list.
@@ -235,8 +238,11 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     // Use mailchimp_list_id UK List if UK or GB user_country and mailchimp_list_id not defined
     if (!(isset($message['mailchimp_list_id'])) && (strtolower($this->submission['user_country']) == 'uk' || strtolower($this->submission['user_country']) == 'gb')) {
-      echo '- user_country: ' . strtolower($this->submission['user_country']) . ', assigning UK mailchimp_list_id.', PHP_EOL;
-      $this->submission['mailchimp_list_id'] = self::UK_MAILCHIMP_LIST_ID;
+      // echo '- user_country: ' . strtolower($this->submission['user_country']) . ', assigning UK mailchimp_list_id.', PHP_EOL;
+      // $this->submission['mailchimp_list_id'] = self::UK_MAILCHIMP_LIST_ID;
+
+      echo '- user_country: ' . strtolower($this->submission['user_country']) . ', assigning Global mailchimp_list_id.', PHP_EOL;
+      $this->submission['mailchimp_list_id'] = self::GLOBAL_MAILCHIMP_LIST_ID;
     }
     // No longer put Brazil (br) or Mexico (mx) users into separate MailChimp lists. Add to global list.
     elseif ($this->submission['user_country'] == 'br' || $this->submission['user_country'] == 'mx') {
