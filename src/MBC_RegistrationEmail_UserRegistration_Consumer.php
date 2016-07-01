@@ -222,7 +222,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       $message['user_country'] = strtolower($this->mbToolbox->countryFromTemplateName($message['email_template']));
     }
     // No longer put Brazil (br) or Mexico (mx) users into separate MailChimp lists. Add to global list.
-    elseif ($this->message['user_country'] == 'br' || $this->message['user_country'] == 'mx') {
+    elseif ($message['user_country'] == 'br' || $message['user_country'] == 'mx') {
       $this->submission['user_country'] = 'global';
     }
     elseif (isset($message['user_country'])) {
