@@ -169,11 +169,6 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       return FALSE;
     }
 
-    if (!(isset($this->message['email_template']))) {
-      echo '- canProcess(), email_template not set.', PHP_EOL;
-      return FALSE;
-    }
-
     if (isset($this->message['birthdate_timestamp']) && ($this->message['birthdate_timestamp'] > time() - (60 * 60 * 24 * 365 * 13))) {
       echo '- canProcess(), user is 13 or under years old.', PHP_EOL;
       return FALSE;
