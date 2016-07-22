@@ -60,11 +60,16 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
 
     parent::consumeQueue($payload);
 
-    if ($this->canProcess()) {
+    if ($this->canProcess($this->message)) {
 
       try {
         $this->logConsumption(['email']);
         $this->setter($this->message);
+        $params = [
+            'code' => $this->submission['code'],
+            'error' => $this->submission['error'],
+            'email' => $this->submission['email']
+        ];
         $this->process();
       }
       catch(Exception $e) {
@@ -84,27 +89,29 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
   /**
    * Conditions to test before processing the message.
    *
+   * @param array $message Values of message to test if it can be processed.
+   *
    * @return boolean
    */
-  protected function canProcess() {
+  protected function canProcess($message) {
 
-    if (is_array($this->message['email']) && empty($this->message['email']['email'])) {
+    if (is_array($message['email']) && empty($message['email']['email'])) {
       echo '- canProcess(), email not set.', PHP_EOL;
       return FALSE;
     }
-    elseif (empty($this->message['email'])) {
+    elseif (empty($message['email'])) {
       echo '- canProcess(), email not set.', PHP_EOL;
       return FALSE;
     }
-    if (!(isset($this->message['code']))) {
+    if (!(isset($message['code']))) {
       echo '- canProcess(), error not set.', PHP_EOL;
       return FALSE;
     }
-    if (isset($this->message['code']) && $this->message['code'] == 250) {
+    if (isset($message['code']) && $message['code'] == 250) {
       echo '- canProcess(), error code 250 acceptable.', PHP_EOL;
       return FALSE;
     }
-    if (!(isset($this->message['error']))) {
+    if (!(isset($message['error']))) {
       echo '- canProcess(), error not set.', PHP_EOL;
       return FALSE;
     }
@@ -136,12 +143,14 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
 
   /**
    * process(): Submit formatted message values to mb-users-api /user/banned.
+   *
+   * @params array $params Values for final processing.
    */
-  protected function process() {
+  protected function process($params) {
 
-    $reason = 'Error: ' . $this->submission['code'] . ', ' . $this->submission['error'];
+    $reason = 'Error: ' . $params['code'] . ', ' . $params['error'];
     $post = [
-      'email' => $this->submission['email'],
+      'email' => $params['email'],
       'reason' => $reason,
       'source' => 'MailChimp',
     ];

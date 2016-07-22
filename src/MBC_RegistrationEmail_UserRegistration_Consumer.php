@@ -94,13 +94,19 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
     parent::consumeQueue($payload);
 
-    if ($this->canProcess()) {
+    if ($this->canProcess($this->message)) {
 
       try {
 
         parent::logConsumption(['email']);
         $this->setter($this->message);
-        $this->process();
+        $params = [
+            'user_country' => $this->submission['user_country'],
+            'mailchimp_list_id' => $this->submission['mailchimp_list_id']
+        ];
+        $this->process($params);
+        unset($this->submission);
+        $this->messageBroker->sendAck($this->message['payload']);
       }
       catch(Exception $e) {
         echo 'Error sending email address: ' . $this->message['email'] . ' to MailChimp for user signup. Error: ' . $e->getMessage();
@@ -133,62 +139,64 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
   /**
    * Conditions to test before processing the message.
    *
+   * @param array $message Values to use to determin if message can be processed.
+   *
    * @return boolean
    */
-  protected function canProcess() {
+  protected function canProcess($message) {
 
-    if (!(isset($this->message['email']))) {
+    if (!(isset($message['email']))) {
       echo '- canProcess(), email not set.', PHP_EOL;
       return FALSE;
     }
 
-   if (filter_var($this->message['email'], FILTER_VALIDATE_EMAIL) === false) {
-      echo '- canProcess(), failed FILTER_VALIDATE_EMAIL: ' . $this->message['email'], PHP_EOL;
+   if (filter_var($message['email'], FILTER_VALIDATE_EMAIL) === false) {
+      echo '- canProcess(), failed FILTER_VALIDATE_EMAIL: ' . $message['email'], PHP_EOL;
       return FALSE;
     }
     else {
-      $this->message['email'] = filter_var($this->message['email'], FILTER_VALIDATE_EMAIL);
+      $message['email'] = filter_var($message['email'], FILTER_VALIDATE_EMAIL);
     }
 
-    if (!(isset($this->message['activity']))) {
+    if (!(isset($message['activity']))) {
       echo '- canProcess(), activity not set.', PHP_EOL;
       return FALSE;
     }
-    if ($this->message['activity'] != 'user_register' &&
-        $this->message['activity'] != 'vote' &&
-        $this->message['activity'] != 'user_welcome-niche' &&
-        $this->message['activity'] != 'user_welcome-teenlife' &&
-        $this->message['activity'] != 'user_welcome-att-ichannel' &&
-        $this->message['activity'] != 'user_import') {
-      echo '- canProcess(), activity: ' . $this->message['activity'] . ' not "user_register","vote" or one of the user_import activities, skipping message.', PHP_EOL;
+    if ($message['activity'] != 'user_register' &&
+        $message['activity'] != 'vote' &&
+        $message['activity'] != 'user_welcome-niche' &&
+        $message['activity'] != 'user_welcome-teenlife' &&
+        $message['activity'] != 'user_welcome-att-ichannel' &&
+        $message['activity'] != 'user_import') {
+      echo '- canProcess(), activity: ' . $message['activity'] . ' not "user_register","vote" or one of the user_import activities, skipping message.', PHP_EOL;
       return FALSE;
     }
 
-    if (!(isset($this->message['mailchimp_list_id']))) {
+    if (!(isset($message['mailchimp_list_id']))) {
       echo '- canProcess(), mailchimp_list_id not set.', PHP_EOL;
       return FALSE;
     }
 
-    if (isset($this->message['birthdate_timestamp']) && ($this->message['birthdate_timestamp'] > time() - (60 * 60 * 24 * 365 * 13))) {
+    if (isset($message['birthdate_timestamp']) && ($message['birthdate_timestamp'] > time() - (60 * 60 * 24 * 365 * 13))) {
       echo '- canProcess(), user is 13 or under years old.', PHP_EOL;
       return FALSE;
     }
 
-    if (isset($this->message['user_country']) && $this->message['user_country'] == 'CA') {
+    if (isset($message['user_country']) && $message['user_country'] == 'CA') {
       echo '- canProcess(), user_country : CA, skip processing.', PHP_EOL;
       return FALSE;
     }
-    if (isset($this->message['application_id']) && $this->message['application_id'] == 'CA') {
+    if (isset($message['application_id']) && $message['application_id'] == 'CA') {
       echo '- canProcess(), application_id : CA, skip processing.', PHP_EOL;
       return FALSE;
     }
 
-    if (!(isset($this->message['user_language']))) {
+    if (!(isset($message['user_language']))) {
       echo '- canProcess(), WARNING: user_language not set.', PHP_EOL;
       parent::reportErrorPayload();
     }
 
-    if (!(isset($this->message['user_country']))) {
+    if (!(isset($message['user_country']))) {
       echo '- canProcess(), WARNING: user_country not set.', PHP_EOL;
       parent::reportErrorPayload();
     }
@@ -288,17 +296,17 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
    *  Add email and related message details grouped by country. The country defines which
    *  MailChimp object and related account to submit to.
    *
+   *  @param array $params Values used for final processing.
+   *
    *  @todo: Root out apps that are not setting the user_country and/or mailchimp_list_id
    *    - mbc-user-import, 20 Nov 2015
    */
-  protected function process() {
+  protected function process($params) {
 
-    $country = $this->submission['user_country'];
-    $mailchimp_list_id = $this->submission['mailchimp_list_id'];
+    $country = $params['user_country'];
+    $mailchimp_list_id = $params['mailchimp_list_id'];
 
     $this->waitingSubmissions[$country][$mailchimp_list_id][] = $this->submission;
-    unset($this->submission);
-    $this->messageBroker->sendAck($this->message['payload']);
   }
 
   /**

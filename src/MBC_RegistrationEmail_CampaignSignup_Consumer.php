@@ -80,13 +80,22 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
 
     parent::consumeQueue($payload);
 
-    if ($this->canProcess()) {
+    if ($this->canProcess($this->message)) {
 
       try {
 
         parent::logConsumption(['email']);
         $this->setter($this->message);
-        $this->process();
+        $params = [
+            'email' => $this->submission['email'],
+            'mailchimp_grouping_id' => $this->submission['mailchimp_grouping_id'],
+            'mailchimp_group_name' => $this->submission['mailchimp_group_name'],
+            'user_country' => $this->submission['user_country'],
+            'mailchimp_list_id' => $this->submission['mailchimp_list_id'],
+        ];
+        $this->process($params);
+        unset($this->submission);
+        $this->messageBroker->sendAck($this->message['payload']);
       }
       catch(Exception $e) {
         echo 'Error sending email address: ' . $this->message['email'] . ' to MailChimp for campaign signup / interest group assignment. Error: ' . $e->getMessage();
@@ -122,24 +131,24 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
    *
    * @return boolean
    */
-  protected function canProcess() {
+  protected function canProcess($message) {
 
-    if (!(isset($this->message['mailchimp_grouping_id']))) {
+    if (!(isset($message['mailchimp_grouping_id']))) {
       echo '- canProcess() - mailchimp_grouping_id not set.', PHP_EOL;
       return FALSE;
     }
-    if (!(isset($this->message['mailchimp_group_name']))) {
+    if (!(isset($message['mailchimp_group_name']))) {
       echo '- canProcess() - mailchimp_group_name not set.', PHP_EOL;
       return FALSE;
     }
 
-    if (isset($this->message['application_id']) && $this->message['application_id'] != 'US') {
-      echo '- canProcess() - application_id not supported: ' . $this->message['application_id'], PHP_EOL;
+    if (isset($message['application_id']) && $message['application_id'] != 'US') {
+      echo '- canProcess() - application_id not supported: ' . $message['application_id'], PHP_EOL;
       return FALSE;
     }
 
-    if (isset($this->message['user_country']) && $this->message['user_country'] != 'US') {
-      echo '- canProcess() - user_county: ' .  $this->message['user_country'] . ' does not support interest group assignment.', PHP_EOL;
+    if (isset($message['user_country']) && $message['user_country'] != 'US') {
+      echo '- canProcess() - user_county: ' .  $message['user_country'] . ' does not support interest group assignment.', PHP_EOL;
       return FALSE;
     }
 
@@ -213,29 +222,27 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
    * process(): Nothing to do related to processing of a single interest group
    * submission to MailChimp.
    */
-  protected function process() {
+  protected function process($params) {
 
     // Structure define by MailChip API: https://apidocs.mailchimp.com/api/2.0/lists/batch-subscribe.php
     $composedSubmission = array(
       'email' => array(
-        'email' => $this->submission['email']
+        'email' => $params['email']
       ),
       'merge_vars' => array(
         'groupings' => array(
           0 => array(
-            'id' => $this->submission['mailchimp_grouping_id'],
-            'groups' => array($this->submission['mailchimp_group_name']),
+            'id' => $params['mailchimp_grouping_id'],
+            'groups' => array($params['mailchimp_group_name']),
           )
         ),
       ),
     );
 
-    $country = $this->submission['user_country'];
-    $mailchimp_list_id = $this->submission['mailchimp_list_id'];
+    $country = $params['user_country'];
+    $mailchimp_list_id = $params['mailchimp_list_id'];
     $this->waitingSubmissions[$country][$mailchimp_list_id][] = $composedSubmission;
     $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_CampaignSignup_Consumer: process', 1);
-    unset($this->submission);
-    $this->messageBroker->sendAck($this->message['payload']);
   }
 
   /**
