@@ -18,7 +18,7 @@
     "DoSomething/messagebroker-phplib": "0.2.*",
     "dosomething/mb-toolbox": "0.11.*",
     "drewm/mailchimp-api": "1.*",
-    "dosomething/stathat": "2.*"
+    "dosomething/stathat": "1.*"
   },
   "require-dev": {
     "phpunit/phpunit": "4.4.*",
