@@ -1,0 +1,25 @@
+{
+  "name": "mbc-registration-email",
+  "version": "0.0.1",
+  "description": "Task running for mbc-registration-email application to run validation tests in a watchful state.",
+  "engines": {
+    "node": ">=4.4.x"
+  },
+  "repository": "https://github.com/DoSomething/mbc-registration-email",
+  "bugs": "https://github.com/DoSomething/mbc-registration-email/issues",
+  "author": "Darren Douglas Lee <dlee@dosomething.org>",
+  "license": "MIT",
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-notify": "^2.2.0",
+    "gulp-phpcs": "^1.1.1",
+    "gulp-phpunit": "^0.16.0",
+    "gulp-shell": "^0.5.2",
+    "phplint": "^1.7.1"
+  },
+  "scripts": {
+    "start": "php mbc-registration-email_userRegistration.php local",
+    "test": "php ./vendor/bin/phpunit --verbose tests",
+    "lint": "php ./vendor/bin/phpcs --colors src"
+  }
+}
