@@ -18,3 +18,5 @@ config.inc
 # Ignore PHP Storm config files
 .idea
 
+# Ignore NPM magic
+node_modules
