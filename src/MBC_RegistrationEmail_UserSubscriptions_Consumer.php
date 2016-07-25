@@ -175,7 +175,11 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
 
     if ($targetNames != null && is_array($targetNames)) {
       foreach ($targetNames as $targetName) {
-        echo '** Consuming ' . $targetName . ': ' . $this->message[$targetName];
+        if (is_array($this->message[$targetName])) {
+          echo '** Consuming ' . $targetName . ': ' . print_r($this->message[$targetName], true), PHP_EOL;
+        } else {
+          echo '** Consuming ' . $targetName . ': ' . $this->message[$targetName], PHP_EOL;
+        }
       }
     }
 
