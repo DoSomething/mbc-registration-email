@@ -70,7 +70,7 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
             'error' => $this->submission['error'],
             'email' => $this->submission['email']
         ];
-        $this->process();
+        $this->process($params);
       }
       catch(Exception $e) {
         echo 'Error unsubscribing email address: ' . $this->message['email'] . ' to mb-user-api. Error: ' . $e->getMessage();

@@ -23,7 +23,8 @@ use DoSomething\StatHat\Client as StatHat;
 require_once CONFIG_PATH . '/mb-secure-config/' . ENVIRONMENT . '/mb-secure-config.inc';
 
 $mbConfig = MB_Configuration::getInstance();
-
+    
+$mbConfig->setProperty('generalSettings', []);
 $mbConfig->setProperty('statHat', new StatHat([
   'ez_key' => getenv("STATHAT_EZKEY"),
   'debug' => getenv("DISABLE_STAT_TRACKING")
