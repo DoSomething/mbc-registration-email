@@ -359,6 +359,13 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
         try {
           echo '-> submitting country: ' . $country, PHP_EOL;
+          // Override MX and BR API key with US.
+          // We don't need to use different API keys anymore because
+          // we add BR and MX users to US "International" list.
+          // The plan is to make sure nothing else is using BR and MX
+          // API keys and remove this functionality for good.
+          // For now, hardcoded override is the safest way to do it.
+          $country = 'us';
           $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
           $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $composedBatch);
           $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_UserRegistration_Consumer: processSubmissions', 1);
