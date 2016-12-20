@@ -51,7 +51,8 @@ function allowedEnvironment($setting)
     $allowedEnvironments = [
         'local',
         'dev',
-        'prod'
+        'prod',
+        'thor',
     ];
 
     if (in_array($setting, $allowedEnvironments)) {
@@ -69,7 +70,7 @@ function allowedEnvironment($setting)
 function loadConfig() {
 
     // Check that environment config file exists
-    if (!file_exists (environment.php)) {
+    if (!file_exists ('environment.php')) {
         return false;
     }
     include('./environment.php');
