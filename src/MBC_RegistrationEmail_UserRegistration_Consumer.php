@@ -105,7 +105,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
             'mailchimp_list_id' => $this->submission['mailchimp_list_id']
         ];
         $this->process($params);
-        unset($this->submission);
+        $this->submission = [];
         $this->messageBroker->sendAck($this->message['payload']);
       }
       catch(Exception $e) {
@@ -130,7 +130,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
       $this->processSubmissions();
       echo '- unset $this->waitingSubmissions: ' . $this->waitingSubmissionsCount($this->waitingSubmissions), PHP_EOL . PHP_EOL;
-      unset($this->waitingSubmissions);
+      $this->waitingSubmissions = [];
     }
 
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_CampaignSignup_Consumer->consumeUserRegistrationQueue() END -------', PHP_EOL . PHP_EOL;

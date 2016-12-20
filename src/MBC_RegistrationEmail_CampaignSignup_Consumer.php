@@ -94,7 +94,7 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
             'mailchimp_list_id' => $this->submission['mailchimp_list_id'],
         ];
         $this->process($params);
-        unset($this->submission);
+        $this->submission = [];
         $this->messageBroker->sendAck($this->message['payload']);
       }
       catch(Exception $e) {
