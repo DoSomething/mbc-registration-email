@@ -1,6 +1,6 @@
 <?php
 /**
- * MBC_RegistrationEmail_CampaignSignup_Consumer:  
+ * MBC_RegistrationEmail_CampaignSignup_Consumer:
  */
 
 namespace DoSomething\MBC_RegistrationEmail;

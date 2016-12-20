@@ -1,6 +1,6 @@
 <?php
 /**
- * MBC_RegistrationEmail_UserRegistration_Consumer:  
+ * MBC_RegistrationEmail_UserRegistration_Consumer:
  */
 
 namespace DoSomething\MBC_RegistrationEmail;

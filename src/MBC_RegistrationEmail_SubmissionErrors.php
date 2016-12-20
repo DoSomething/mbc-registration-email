@@ -1,6 +1,6 @@
 <?php
 /**
- * MBC_RegistrationEmail_SubmissionErrors:  
+ * MBC_RegistrationEmail_SubmissionErrors:
  */
 
 namespace DoSomething\MBC_RegistrationEmail;
@@ -32,7 +32,7 @@ class MBC_RegistrationEmail_SubmissionErrors
 
     $this->mailChimp = $mailChimp;
     $this->listID = $listID;
-    
+
     $this->mbConfig = MB_Configuration::getInstance();
     $this->messageBroker = $this->mbConfig->getProperty('messageBroker_Subscribes');
     $this->statHat = $this->mbConfig->getProperty('statHat');
@@ -42,7 +42,7 @@ class MBC_RegistrationEmail_SubmissionErrors
    *
    */
   public function processSubmissionErrors($errors, $composedBatch) {
-    
+
     $routingKey = 'user.mailchimp.error';
 
     // Add extries for each error encountered to the directUserStatusExchange
@@ -60,7 +60,7 @@ class MBC_RegistrationEmail_SubmissionErrors
       }
     }
   }
-   
+
   /**
    * Resubscribe email address with interest group assignment - submit queue
    * entry to mailchimpCampaignSignupQueue
@@ -86,7 +86,7 @@ class MBC_RegistrationEmail_SubmissionErrors
       }
     }
     $results = $this->mailChimp->submitSubscribe($this->listID, $resubscribeDetails);
-    
+
     // Keep track of successful resubscribes
     // $resubscribeStatus ? $resubscribes++ : $failedResubscribes++;
   }
