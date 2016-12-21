@@ -85,6 +85,10 @@ class MBC_RegistrationEmail_SubmissionErrors
         break;
       }
     }
+
+    // Resubscribing:
+    echo '-> Resubscribing ' . $resubscribeDetails['email']['email']
+      . ' to list ' . $this->listID . PHP_EOL;
     $results = $this->mailChimp->submitSubscribe($this->listID, $resubscribeDetails);
 
     // Keep track of successful resubscribes
