@@ -48,50 +48,9 @@ class MBC_RegistrationEmail_SubmissionErrors
     // Add extries for each error encountered to the directUserStatusExchange
     foreach ($errors as $errorDetails) {
       $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_SubmissionErrors: error: '. $errorDetails['code'], 1);
-      // Resubscribe if email address is reported as unsubscribed - the
-      // transaction / user signing up for a campaign is confirmation that
-      // they want to resubscribe.
-      if ($errorDetails['code'] == 212) {
-        $this->resubscribeEmail($errorDetails, $composedBatch);
-      }
-      else {
-        $payload = serialize($errorDetails);
-        $this->messageBroker->publish($payload, $routingKey);
-      }
+      $payload = serialize($errorDetails);
+      $this->messageBroker->publish($payload, $routingKey);
     }
   }
 
-  /**
-   * Resubscribe email address with interest group assignment - submit queue
-   * entry to mailchimpCampaignSignupQueue
-   *
-   * @param array $errorDetails
-   *   The error details reported when the email address was submitted as a part
-   *   of a batch submission.
-   * @param array $composedBatch
-   *   The details of the batch data sent to Mailchimp. The interest group
-   *   details will be extractacted for the /lists/subscribe submission to
-   *   Mailchimp
-   *
-   * @return string $status
-   *   The results of the submission to the UserAPI
-   */
-  private function resubscribeEmail($errorDetails, $composedBatch) {
-    // Lookup the group assignment details from $composedBatch by the email
-    // address in $errorDetails
-    foreach ($composedBatch as $composedItemCount => $composedItem) {
-      if ($composedItem['email']['email'] == $errorDetails['email']['email']) {
-        $resubscribeDetails = $composedItem;
-        break;
-      }
-    }
-
-    // Resubscribing:
-    echo '-> Resubscribing ' . $resubscribeDetails['email']['email']
-      . ' to list ' . $this->listID . PHP_EOL;
-    $results = $this->mailChimp->submitSubscribe($this->listID, $resubscribeDetails);
-
-    // Keep track of successful resubscribes
-    // $resubscribeStatus ? $resubscribes++ : $failedResubscribes++;
-  }
 }

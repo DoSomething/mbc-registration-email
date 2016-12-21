@@ -369,15 +369,15 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
             $country = 'us';
           }
 
-          $this->mbcURMailChimp[$country]->addSubscribers($listID, $submissions);
-          $results = $this->mbcURMailChimp[$country]->commitBatch();
+          $this->mbcURMailChimp[$country]->addSubscribersToBatch($listID, $submissions);
+          $responses = $this->mbcURMailChimp[$country]->commitBatch();
 
           $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_UserRegistration_Consumer: processSubmissions', 1);
-          if (isset($results['error_count']) && $results['error_count'] > 0) {
+          if (empty($responses['success'])) {
             echo '- ERRORS enountered in MailChimp submission... processing.', PHP_EOL;
             $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_UserRegistration_Consumer: processSubmissions: error_count > 0', 1);
             $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
-            $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
+            $processSubmissionErrors->processSubmissionErrors($results['responses'], $composedBatch);
           }
         }
         catch(Exception $e) {
