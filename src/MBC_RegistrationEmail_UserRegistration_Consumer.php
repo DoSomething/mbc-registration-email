@@ -365,9 +365,13 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
           // The plan is to make sure nothing else is using BR and MX
           // API keys and remove this functionality for good.
           // For now, hardcoded override is the safest way to do it.
-          $country = 'us';
-          $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
-          $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $composedBatch);
+          if ($country !== 'global') {
+            $country = 'us';
+          }
+
+          $this->mbcURMailChimp[$country]->addSubscribers($listID, $submissions);
+          $results = $this->mbcURMailChimp[$country]->commitBatch();
+
           $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_UserRegistration_Consumer: processSubmissions', 1);
           if (isset($results['error_count']) && $results['error_count'] > 0) {
             echo '- ERRORS enountered in MailChimp submission... processing.', PHP_EOL;
