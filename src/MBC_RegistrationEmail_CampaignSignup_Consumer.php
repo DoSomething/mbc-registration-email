@@ -133,6 +133,12 @@ class MBC_RegistrationEmail_CampaignSignup_Consumer extends MB_Toolbox_BaseConsu
    */
   protected function canProcess($message) {
 
+    // Exclude generated emails adresses.
+    if (preg_match('/@.*\.import$/', $message['email'])) {
+      echo '- canProcess(), import placeholder address: ' . $message['email'], PHP_EOL;
+      return false;
+    }
+
     if (!(isset($message['mailchimp_grouping_id']))) {
       echo '- canProcess() - mailchimp_grouping_id not set.', PHP_EOL;
       return FALSE;

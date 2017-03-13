@@ -158,6 +158,12 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
       $message['email'] = filter_var($message['email'], FILTER_VALIDATE_EMAIL);
     }
 
+    // Exclude generated emails adresses.
+    if (preg_match('/@.*\.import$/', $this->message['email'])) {
+      echo '- canProcess(), import placeholder address: ' . $this->message['email'], PHP_EOL;
+      return false;
+    }
+
     if (!(isset($message['activity']))) {
       echo '- canProcess(), activity not set.', PHP_EOL;
       return FALSE;
