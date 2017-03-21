@@ -23,7 +23,7 @@ use DoSomething\StatHat\Client as StatHat;
 require_once CONFIG_PATH . '/mb-secure-config/' . ENVIRONMENT . '/mb-secure-config.inc';
 
 $mbConfig = MB_Configuration::getInstance();
-    
+
 $mbConfig->setProperty('generalSettings', []);
 $mbConfig->setProperty('statHat', new StatHat([
   'ez_key' => getenv("STATHAT_EZKEY"),
@@ -62,7 +62,7 @@ $mbRabbitConfig = $mbConfig->constructRabbitConfig('directDeadLetterExchange', [
 $mbConfig->setProperty('messageBroker_deadLetter', new MessageBroker($rabbitCredentials, $mbRabbitConfig));
 
 $mbConfig->setProperty('mb_user_api_config', array(
-  'host' => getenv("MB_USER_API_HOST"),
+  'host' => getenv("MB_USE_RAPI_HOST"),
   'port' => getenv('MB_USER_API_PORT')
 ));
 $mbConfig->setProperty('mbToolboxcURL', new MB_Toolbox_cURL());

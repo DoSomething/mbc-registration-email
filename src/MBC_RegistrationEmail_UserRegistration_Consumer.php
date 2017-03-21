@@ -1,6 +1,6 @@
 <?php
 /**
- * MBC_RegistrationEmail_UserRegistration_Consumer:  
+ * MBC_RegistrationEmail_UserRegistration_Consumer:
  */
 
 namespace DoSomething\MBC_RegistrationEmail;
@@ -105,7 +105,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
             'mailchimp_list_id' => $this->submission['mailchimp_list_id']
         ];
         $this->process($params);
-        unset($this->submission);
+        $this->submission = [];
         $this->messageBroker->sendAck($this->message['payload']);
       }
       catch(Exception $e) {
@@ -130,7 +130,7 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
 
       $this->processSubmissions();
       echo '- unset $this->waitingSubmissions: ' . $this->waitingSubmissionsCount($this->waitingSubmissions), PHP_EOL . PHP_EOL;
-      unset($this->waitingSubmissions);
+      $this->waitingSubmissions = [];
     }
 
     echo '-------  mbc-registration-email - MBC_RegistrationEmail_CampaignSignup_Consumer->consumeUserRegistrationQueue() END -------', PHP_EOL . PHP_EOL;
@@ -371,15 +371,19 @@ class MBC_RegistrationEmail_UserRegistration_Consumer extends MB_Toolbox_BaseCon
           // The plan is to make sure nothing else is using BR and MX
           // API keys and remove this functionality for good.
           // For now, hardcoded override is the safest way to do it.
-          $country = 'us';
-          $composedBatch = $this->mbcURMailChimp[$country]->composeSubscriberSubmission($submissions);
-          $results = $this->mbcURMailChimp[$country]->submitBatchSubscribe($listID, $composedBatch);
+          if ($country !== 'global') {
+            $country = 'us';
+          }
+
+          $this->mbcURMailChimp[$country]->addSubscribersToBatch($listID, $submissions);
+          $responses = $this->mbcURMailChimp[$country]->commitBatch();
+
           $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_UserRegistration_Consumer: processSubmissions', 1);
-          if (isset($results['error_count']) && $results['error_count'] > 0) {
+          if (empty($responses['success'])) {
             echo '- ERRORS enountered in MailChimp submission... processing.', PHP_EOL;
             $this->statHat->ezCount('mbc-registration-email: MBC_RegistrationEmail_UserRegistration_Consumer: processSubmissions: error_count > 0', 1);
             $processSubmissionErrors = new MBC_RegistrationEmail_SubmissionErrors($this->mbcURMailChimp[$country], $listID);
-            $processSubmissionErrors->processSubmissionErrors($results['errors'], $composedBatch);
+            $processSubmissionErrors->processSubmissionErrors($results['responses'], $composedBatch);
           }
         }
         catch(Exception $e) {

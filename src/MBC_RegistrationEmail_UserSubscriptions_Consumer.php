@@ -1,7 +1,7 @@
 <?php
 /**
  * MBC_RegistrationEmail_UserRegistration_Consumer: Collection of functionality related to
- * processing userMailchimpStatusQueue. 
+ * processing userMailchimpStatusQueue.
  */
 
 namespace DoSomething\MBC_RegistrationEmail;
@@ -36,7 +36,7 @@ class MBC_RegistrationEmail_UserSubscriptions_Consumer extends MB_Toolbox_BaseCo
    * __construct(): Gather common configuration settings.
    */
   public function __construct() {
-    
+
     parent::__construct();
     $this->mbConfig = MB_Configuration::getInstance();
     $this->mbToolboxcURL = $this->mbConfig->getProperty('mbToolboxcURL');
